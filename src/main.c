@@ -257,21 +257,25 @@ int main(int argc, char *argv[])
     /* printf function displays the content that is
      * passed between the double quotes.
      */
-    printf("------------------------------\n");
+
+    char* spacer="----------------------------------------";
+    printf("%s\n", spacer); // ----------------------------
     printf("Remarkable2 (Network) Keyboard\n");
-    printf("------------------------------\n");
-    printf("  mkfifo re-keyboard-pipe\n");
+    printf("%s\n", spacer); // ----------------------------
+    printf("  mkfifo re-event1-extract\n");
+    printf("  mkfifo re-event1-inject\n");
     printf("  ssh root@10.1.1.240 \"cat /dev/input/event1\" > re-event1-extract\n");
-    printf("  rekeyboard > re-keyboard-pipe\n");
-    printf("------------------------------\n");
+    printf("  cat re-event1-inject | ssh root@10.1.1.240 \"cat > re-event1-extract\"\n");
+    printf("%s\n", spacer); // ----------------------------
+    char* file_in  = "re-event1-extract";
+    char* file_out = "data-out";
 
-    char* file-in  "re-event1-extract";
-    char* file-out "data-out";
-    printf("Reading from: %s", file-in);
-    printf("Writing to:   %s", file-out);
-    printf("------------------------------\n");
+    printf("Reading from: %s\n", file_in);
+    printf("Writing to:   %s\n", file_out);
+    printf("%s\n", spacer); // ----------------------------
 
-    // Open file to read
+
+// Open file to read
     int fd = open("re-event1-extract", O_RDONLY);
     if (fd == 0 ) {
         printf("File un-successfully opened\n");
@@ -287,9 +291,9 @@ int main(int argc, char *argv[])
         printf(".");
     }
 
-    // test
-    //GList* path = NULL;
-    //path = add_path_test (path);
+// test
+//GList* path = NULL;
+//path = add_path_test (path);
 
-    return 0;
+        return 0;
 }

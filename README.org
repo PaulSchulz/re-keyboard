@@ -2,6 +2,7 @@
   - [[#introduction][Introduction]]
   - [[#build][Build]]
   - [[#installation][Installation]]
+  - [[#development][Development]]
 
 ** Introduction
 Virtual keyboard for Remarkable tablet
@@ -19,3 +20,11 @@ Currently only available as C source code.
 #+end_src
 
 ** Installation
+Copy the binary (*src/re-keyboard*) into a directory in you executable path.
+
+#+begin_src shell
+  cp src/re-markable ~/bin/
+#+end_src
+
+** Development
+Development notes are kept in [[file:notes.org][notes.org.]]
