@@ -1,0 +1,21 @@
+* re-keyboard                                                             :TOC:
+  - [[#introduction][Introduction]]
+  - [[#build][Build]]
+  - [[#installation][Installation]]
+
+** Introduction
+Virtual keyboard for Remarkable tablet
+
+Connect to your reMarkable tablet and use a regular keyboard to enter text on
+the tablet.
+
+Currently only available as C source code. 
+
+** Build
+
+#+begin_src shell
+  cd src
+  make
+#+end_src
+
+** Installation

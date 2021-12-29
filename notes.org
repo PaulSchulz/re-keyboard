@@ -1,0 +1,37 @@
+* Re-Keyboard Developer Notes                                             :TOC:
+  - [[#introduction][Introduction]]
+  - [[#other-related-projects][Other related projects]]
+
+** Introduction
+This project is experimental (worst than alpha) work in progress.
+
+Only use this code as an example of an incomplete project.
+
+** Other related projects
+
+*** Collated list of reMarkable software
+Go here first. 
+See: https://github.com/reHackable/awesome-reMarkable
+
+*** funkey/recept
+Project that intercepts and smooths pen strokes via overloading the 'open' system call with LD_PRELOAD.
+
+See: https://github.com/funkey/recept
+
+From this project
+
+type == 1 && code == 320 && value == 1 -> pen in
+type == 1 && code == 320 && value == 0 -> pen out
+type == 1 && code == 321 && value == 1 -> eraser in
+type == 1 && code == 321 && value == 0 -> eraser out
+
+type == 1 && code == 330 && value == 1 -> pen/eraser down
+type == 1 && code == 330 && value == 0 -> pen/eraser up
+
+type == 3 && code == 0 -> value == x
+type == 3 && code == 1 -> value == y
+type == 3 && code == 24 -> value == pressure
+type == 3 && code == 25 -> value == distance
+type == 3 && code == 26 -> value == tilt x
+type == 3 && code == 27 -> value == tilt y
+
