@@ -24,13 +24,13 @@ static int hostname = 1;
 static GOptionEntry entries[] =
 {
     {"host", 'h', 0, G_OPTION_ARG_INT, &hostname,
-     "IP or name of Remarkable2 to connect to.", "M"},
+            "IP or name of Remarkable2 to connect to.", "M"},
     {NULL}
 };
 
 //////////////////////////////////////////////////////////////////////////////
 // Remarkable Data
-typedef struct _segment_t{
+typedef struct _segment_t {
     guint32 tv_sec;
     guint32 tv_usec;
     guint16 type;
@@ -254,9 +254,9 @@ int main(int argc, char *argv[])
         exit (1);
     }
 
-    /* printf function displays the content that is
-     * passed between the double quotes.
-     */
+/* printf function displays the content that is
+ * passed between the double quotes.
+ */
 
     char* spacer="----------------------------------------";
     printf("%s\n", spacer); // ----------------------------
