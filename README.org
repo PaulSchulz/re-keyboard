@@ -15,7 +15,6 @@ Currently only available as C source code.
 ** Build
 
 #+begin_src shell
-  cd src
   make
 #+end_src
 
