@@ -35,13 +35,24 @@
 
 //////////////////////////////////////////////////////////////////////////////
 // Command line parsing with GOption
-static int hostname = 1;
+static char*  hostname[100];
 static int debug = FALSE;
+
+// static char* read_file[100];
 
 static GOptionEntry entries[] =
 {
-    {"host", 'h', 0, G_OPTION_ARG_INT, &hostname,
-            "IP or name of Remarkable2 to connect to.", "M"},
+    // const(char)* longName;
+    // char shortName;
+    // int flags;
+    // GOptionArg arg;
+    // void* argData;
+    // const(char)* description;
+    // const(char)* argDescription;
+
+    {"host", 'h', 0, G_OPTION_ARG_STRING, &hostname,
+     "IP or name of Remarkable2 to connect to.", "M"},
+
     {NULL}
 };
 
@@ -268,6 +279,7 @@ static int stream_restore (FILE *const stream, const struct termios *const state
 }
 
 
+
 //////////////////////////////////////////////////////////////////////////////
 void usage (void) {
     char* spacer="----------------------------------------";
@@ -285,8 +297,10 @@ void info (void) {
     char* spacer="----------------------------------------";
     fprintf(stdout, "%s\n", spacer); // ----------------------------
     fprintf(stdout, "Press\n");
-    fprintf(stdout, "  'r' to record\n");
+    fprintf(stdout, "  'u' for usage details\n");
     fprintf(stdout, "  'q' to quit\n");
+    fprintf(stdout, "  'r' to record\n");
+    fprintf(stdout, "  's' to record\n");
     fprintf(stdout, "%s\n", spacer); // ----------------------------
 }
 
@@ -321,25 +335,26 @@ int main(int argc, char *argv[])
     usage();
 
     char* file_in  = EVENTS_IN;
+    // char* file_out = EVENTS_OUT;
     char* file_out = PENDATA;
     char* file_raw = PENDATA"-raw";
 
-    // Create pipes if required
-    // create_pipes();
+// Create pipes if required
+// create_pipes();
 
     printf("Reading from: %s\n", file_in);
     printf("Writing to:   %s\n", file_out);
     printf("%s\n", spacer); // ----------------------------
 
-    // Read data
+// Read data
     FILE *fp;
     FILE *fp_out;
     FILE *fp_raw;
-    // char c;
+// char c;
 
     printf("INFO: Connect pipes.\n");
 
-    // Open files
+// Open files
     if ((fp = fopen(file_in, "r")) == NULL){
         int errnum = errno;
         fprintf(stderr, "Error opening input file: %s\n", file_in);
@@ -349,14 +364,14 @@ int main(int argc, char *argv[])
 
     if ((fp_out = fopen(file_out, "w")) == NULL){
         int errnum = errno;
-        fprintf(stderr, "Error opening input file: %s\n", file_in);
+        fprintf(stderr, "Error opening input file: %s\n", file_out);
         fprintf(stderr, "  %s\n", strerror(errnum));
         exit(1);
     };
 
     if ((fp_raw = fopen(file_raw, "w")) == NULL){
         int errnum = errno;
-        fprintf(stderr, "Error opening input file: %s\n", file_in);
+        fprintf(stderr, "Error opening input file: %s\n", file_raw);
         fprintf(stderr, "  %s\n", strerror(errnum));
         exit(1);
     };
@@ -368,103 +383,103 @@ int main(int argc, char *argv[])
     struct termios termios_saved;
     char c;
 
-    /* Make terminal at standard input unbuffered and raw. */
+/* Make terminal at standard input unbuffered and raw. */
     if (stream_makeraw(stdin, &termios_saved)) {
         fprintf(stderr, "Cannot make standard input raw: %s.\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
-    info();
-    fflush(stdout);
+        info();
+        fflush(stdout);
 
-    int record = FALSE;
-    int quit   = FALSE;
-    int loop = TRUE;
+        int record = FALSE;
+        int quit   = FALSE;
+        int loop   = TRUE;
 
-    debug = TRUE;
-    do {
-        c = getchar(); /* Or c = getc(stdin); */
+        debug = TRUE;
+        do {
+            c = getchar(); /* Or c = getc(stdin); */
 
-        if (debug) {
-            if (isprint(c))
-                fprintf(stdout,
-                        "Received character '%c', code %d = 0%03o = 0x%02x\n",
-                        c, c, c, c);
-            else
-                fprintf(stdout,
-                        "Received code %d = 0%03o = 0x%02x\n",
-                        c, c, c);
-            fflush(stdout);
-        }
+            if (debug) {
+                if (isprint(c))
+                    fprintf(stdout,
+                            "Received character '%c', code %d = 0%03o = 0x%02x\n",
+                            c, c, c, c);
+                else
+                    fprintf(stdout,
+                            "Received code %d = 0%03o = 0x%02x\n",
+                            c, c, c);
+                fflush(stdout);
+            }
 
-        switch (c) {
-        case 'u':
-            usage();
-            break;
-        case 'd':
-            debug = TRUE;
-            break;
-        case 'r':
-            record = TRUE;
-            loop = FALSE;
-            break;
-        case 'q':
-            quit = TRUE;
-            loop = FALSE;
-            break;
-        default:
-            printf(".");
-        }
-
-    } while (loop);
-
-    /* Restore terminal to original state. */
-    if (stream_restore(stdin, &termios_saved)) {
-        fprintf(stderr, "Cannot restore standard input state: %s.\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-    fflush(stdout);
-
-    if (quit == TRUE) {
-        printf("INFO: Quit\n");
-        exit(0);
-    }
-
-    segment_u segment;
-
-    if (record == TRUE) {
-        printf("INFO: Recording pen strokes to file: %s\n", file_out);
-    }
-
-    printf("INFO: Reading pen stroke data.\n");
-    int index = 0;
-    while(1) {
-        c = fgetc(fp);
-        if( feof(fp) ) {
-            break ;
-        }
-
-        fputc(c,fp_raw);
-
-        segment.data[index] = c;
-
-        index++;
-        if (index == sizeof(segment.data) ) {
-            index = 0;
-
-            switch (segment.segment.type){
-            case 0:
-                printf("0");
+            switch (c) {
+            case 'u':
+                usage();
                 break;
-            case 3:
-                printf(">");
+            case 'd':
+                debug = TRUE;
+                break;
+            case 'r':
+                record = TRUE;
+                loop = FALSE;
+                break;
+            case 'q':
+                quit = TRUE;
+                loop = FALSE;
                 break;
             default:
                 printf(".");
             }
 
+        } while (loop);
 
-            fwrite(segment.data, sizeof(segment.data), 1, fp_out);
+        /* Restore terminal to original state. */
+        if (stream_restore(stdin, &termios_saved)) {
+            fprintf(stderr, "Cannot restore standard input state: %s.\n", strerror(errno));
+            return EXIT_FAILURE;
+        }
+        fflush(stdout);
+
+        if (quit == TRUE) {
+            printf("INFO: Quit\n");
+            exit(0);
+        }
+
+        segment_u segment;
+
+        if (record == TRUE) {
+            printf("INFO: Recording pen strokes to file: %s\n", file_out);
+        }
+
+        printf("INFO: Reading pen stroke data.\n");
+        int index = 0;
+        while(1) {
+            c = fgetc(fp);
+            if( feof(fp) ) {
+                break ;
+            }
+
+            fputc(c,fp_raw);
+
+            segment.data[index] = c;
+
+            index++;
+            if (index == sizeof(segment.data) ) {
+                index = 0;
+
+                switch (segment.segment.type){
+                case 0:
+                    printf("0");
+                    break;
+                case 3:
+                    printf(">");
+                    break;
+                default:
+                    printf(".");
+                }
+
+
+                fwrite(segment.data, sizeof(segment.data), 1, fp_out);
         }
     }
     fclose(fp);

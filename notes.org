@@ -20,6 +20,7 @@ Project that intercepts and smooths pen strokes via overloading the 'open' syste
 
 See: https://github.com/funkey/recept
 
+
 From this project
 
 type == 1 && code == 320 && value == 1 -> pen in
@@ -40,3 +41,23 @@ type == 3 && code == 27 -> value == tilt y
 ** Functionality
 
 ** References
+
+*** WACOM Hardware
+From 'cat /proc/bus/input/devices' on reMarkable:
+#+begin_src ascii
+I: Bus=0018 Vendor=056a Product=0000 Version=0031
+N: Name="Wacom I2C Digitizer"
+P: Phys=
+S: Sysfs=/devices/soc0/soc/30800000.aips-bus/30a20000.i2c/i2c-0/0-0009/input/input1
+U: Uniq=
+H: Handlers=event1 
+B: PROP=0
+B: EV=b
+B: KEY=1c03 0 0 0 0 0 0 0 0 0 0
+B: ABS=f000003
+#+end_src
+
+*** WACOM Software
+See
+- https://github.com/linuxwacom/input-wacom/wiki/Analysing-kernel-events
+- https://github.com/Wacom-Developer/wacom-device-kit-linux
