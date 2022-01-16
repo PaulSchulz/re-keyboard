@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
                 data[12]
                 + data[13] * 0x100
                 + data[14] * 0x10000
-                + data[15] * 0x100000;
+                + data[15] * 0x1000000;
 
             // Decoded segment
             printf(" %08X", segment.tv_sec);

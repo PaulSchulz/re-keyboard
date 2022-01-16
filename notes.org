@@ -61,3 +61,9 @@ B: ABS=f000003
 See
 - https://github.com/linuxwacom/input-wacom/wiki/Analysing-kernel-events
 - https://github.com/Wacom-Developer/wacom-device-kit-linux
+
+*** Communiuty Software
+**** rmkit
+https://github.com/rmkit-dev/rmkit.git
+
+See: 
