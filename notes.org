@@ -41,7 +41,6 @@ type == 3 && code == 27 -> value == tilt y
 ** Functionality
 
 ** References
-
 *** WACOM Hardware
 From 'cat /proc/bus/input/devices' on reMarkable:
 #+begin_src ascii
@@ -66,4 +65,4 @@ See
 **** rmkit
 https://github.com/rmkit-dev/rmkit.git
 
-See: 
+
