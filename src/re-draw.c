@@ -23,6 +23,11 @@
 #include <glib.h>
 // GList - Double linked list
 
+#include <stdbool.h>
+#include <math.h>
+
+#include "hershey-fonts.h"
+
 //////////////////////////////////////////////////////////////////////////////
 // Remarkable Data
 typedef struct _segment_t {
@@ -96,8 +101,7 @@ void segment_write_data (segment_t* data) {
     putchar((data->value) & 0xFF);
     putchar((data->value / 0x100) & 0xFF);
     putchar((data->value / 0x10000) & 0xFF);
-    //    putchar((data->value / 0x1000000) & 0xFF);
-    putchar((data->value>>(8*3)) & 0xFF);
+    putchar((data->value / 0x1000000) & 0xFF);
 
     // fprintf(stderr,"[%02X]",
     // (data->value>>(8*3)) & 0xFF);
@@ -111,15 +115,10 @@ void segment_write_end (segment_t* data) {
     segment_write_data(data);
 }
 
-segment_t sdata[7] =
+#define NDATA 678
+segment_t sdata[NDATA] =
 {
-    {0, 0, 1, 320,         1},
-    {0, 0, 3,   0,     18656},
-    {0, 0, 3,   1,     15054},
-    {0, 0, 3,  25,        61},
-    {0, 0, 3,  26, 284161696},
-    {0, 0, 3,  27, 284162096},
-    {0, 0, 0,   0,         0},
+#include "data.c"
 };
 
 GList* add_segment_to_path (GList* path, segment_t* segment) {
@@ -127,6 +126,7 @@ GList* add_segment_to_path (GList* path, segment_t* segment) {
 }
 
 // Calculate the metics (extents) for a path.
+// TODO Test 'calculate_metric'
 metric_t calculate_metric (GList* path) {
     GList* runner = path;
     segment_t* data;
@@ -181,7 +181,7 @@ metric_t calculate_metric (GList* path) {
         }
 
         runner = runner->next;
-        }
+    }
 
     metric.x = minx;
     metric.y = miny;
@@ -192,92 +192,300 @@ metric_t calculate_metric (GList* path) {
     return metric;
 }
 
+segment_t* segment_translate(segment_t* data, int dx, int dy) {
+    switch (data->type) {
+    case 3:
+        switch (data->code) {
+        case 0:
+            data->value = data->value + dx;
+            break;
+        case 1:
+            data->value = data->value + dy;
+            break;
+        }
+    }
+
+    return data;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+#define EV_KEY         1
+#define EV_ABS         3
+
+#define BTN_TOOL_PEN 320
+#define ABS_PRESSURE  24
+#define ABS_DISTANCE  25
+#define ABS_X          0
+#define ABS_Y          1
+#define ABS_TILT_X    26
+#define ABS_TILT_Y    27
+
+static void send_wacom_event(int type, int code, int value)
+{
+    segment_t segment;
+    segment_set_time(&segment);
+    segment.type  = type;
+    segment.code  = code;
+    segment.value = value;
+    segment_write_data(&segment);
+}
+
+static void press_ui_button(int x, int y)
+{
+    // Pen down
+    send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
+    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+    send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
+    send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
+    send_wacom_event(0, 0, 0);
+    // finish_wacom_events();
+    send_wacom_event(EV_ABS, ABS_X, y);
+    send_wacom_event(EV_ABS, ABS_Y, x);
+    send_wacom_event(EV_ABS, ABS_PRESSURE, 3288);
+    send_wacom_event(EV_ABS, ABS_DISTANCE, 0);
+    send_wacom_event(EV_ABS, ABS_TILT_X, 0);
+    send_wacom_event(EV_ABS, ABS_TILT_Y, 0);
+    send_wacom_event(0, 0, 0);
+    // finish_wacom_events();
+    //send_wacom_event(EV_KEY, BTN_TOUCH, 1);
+    send_wacom_event(0, 0, 0);
+    // finish_wacom_events();
+    // finish_wacom_events();
+    usleep(10 * 1000);  // <---- If I remove this, strokes are missing.
+
+    // Pen up
+    send_wacom_event(EV_ABS, ABS_X, y);
+    send_wacom_event(EV_ABS, ABS_Y, x);
+    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+    send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
+    // finish_wacom_events();
+    send_wacom_event(EV_KEY, BTN_TOOL_PEN, 0);
+    send_wacom_event(0, 0, 0);
+    // finish_wacom_events();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+int cursor_x = 5000;
+int cursor_y = 5000;
+int limit_right = 10000;
+int font_scale = 100;
+bool wrap_ok = true;
+static float mini_segment_length = 10.0;      // How far to move the pen while drawing
+
+// Store points as floating point for calculations
+typedef struct _point_t {
+    float x;
+    float y;
+} point_t;
+
+GList* add_point (GList* list, float x, float y){
+    point_t* new_point  = malloc(sizeof(point_t));
+    new_point->x=x;
+    new_point->y=y;
+
+    list = g_list_append(list,new_point);
+    return list;
+}
+
+// Test Stroke Data
+gint8 test_stroke_data[] = { 8, 18,   9,21,1,0,-1,-1,9,21,17,0,-1,-1,4,7,14,7,};
+
+static void strokes_interp (const gint8* stroke_data,
+                            int num_strokes,
+                            GList* fstrokes)
+{
+    // This one actually works~
+    float last_raw_x = -1;
+    float last_raw_y = -1;
+
+    // Stroke the character by scaling
+    for (int i = 0; i < num_strokes; ++i)
+    {
+        float raw_x = stroke_data[2 * i + 0];
+        float raw_y = stroke_data[2 * i + 1];
+        if (raw_x != -1 || raw_y != -1)
+        {
+            if (last_raw_x != -1 || last_raw_y != -1)
+            {
+                float desired_dx = raw_x - last_raw_x;
+                float desired_dy = raw_y - last_raw_y;
+                float length = font_scale * sqrt(desired_dx * desired_dx + desired_dy * desired_dy);
+                if (length > 0.0001)
+                {
+                    int subsegments = length / mini_segment_length - 1;
+                    for (int i = 0; i < subsegments; ++i)
+                    {
+                        float t = (float)i / (float)subsegments;
+                        float dx = t * desired_dx;
+                        float dy = t * desired_dy;
+                        float mod_x = last_raw_x + dx;
+                        float mod_y = last_raw_y + dy;
+                        // TODO Fix me
+                        // fstrokes.push_back(mod_x);
+// fstrokes.push_back(mod_y);
+                        mod_x=mod_x;
+                        mod_y=mod_y;
+                    }
+                }
+            }
+            // TODO Fix me
+            // fstrokes.push_back(raw_x);
+            // fstrokes.push_back(raw_y);
+            raw_x = raw_x;
+            raw_y = raw_y;
+            last_raw_x = raw_x;
+            last_raw_y = raw_y;
+        }
+        else
+        {
+            last_raw_x = -1;
+            last_raw_y = -1;
+            // fstrokes.push_back(-1);
+            // fstrokes.push_back(-1);
+        }
+    }
+}
+
+static void wacom_char(char ascii_value, bool wrap_ok)
+{
+    int num_strokes = 0;
+    int char_width = 0;
+    char* current_font = "hershey";
+
+    const gint8* stroke_data = get_font_char(current_font, ascii_value, &num_strokes, &char_width);
+    if (!stroke_data)
+        return;
+
+    // Interpolate the strokes
+    //static std::vector<float> fstrokes; // static to avoid constant allocation
+    //fstrokes.clear();
+    GList* fstrokes = NULL;
+    strokes_interp(stroke_data, num_strokes, fstrokes);
+    //num_strokes = fstrokes.size() >> 1;
+
+    if (num_strokes > 0)
+    {
+        send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
+        // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+        send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
+        send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
+        send_wacom_event(0, 0, 0);
+        // finish_wacom_events();
+
+        bool pen_down = false;
+        float x = 0;
+        float y = 0;
+        for (int stroke_index = 0; stroke_index < num_strokes; ++stroke_index)
+        {
+            // TODO Fix measurements
+            // float dx = fstrokes[2 * stroke_index + 0];
+            // float dy = fstrokes[2 * stroke_index + 1];
+            float dx = 0;
+            float dy = 0;
+            if (dx == -1 && dy == -1)
+            {
+                if (pen_down)
+                {
+                    send_wacom_event(EV_ABS, ABS_X, (int)y);
+                    send_wacom_event(EV_ABS, ABS_Y, (int)x);
+                    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+                    send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
+                    send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
+                    send_wacom_event(0, 0, 0);
+                    // finish_wacom_events();
+                    // finish_wacom_events();
+                    usleep(1000);
+                    // usleep(sleep_after_pen_up_ms * 1000);
+                    pen_down = false;
+                }
+            }
+            else
+            {
+                x = (float)dx * font_scale + cursor_x;
+                y = (float)dy * font_scale + cursor_y;
+                // finish_wacom_events();
+                // usleep(sleep_each_stroke_point_ms * 1000);
+                usleep(1000);
+                send_wacom_event(EV_ABS, ABS_X, (int)y);
+                send_wacom_event(EV_ABS, ABS_Y, (int)x);
+                send_wacom_event(EV_ABS, ABS_PRESSURE, 3288);
+                send_wacom_event(EV_ABS, ABS_DISTANCE, 0);
+                send_wacom_event(EV_ABS, ABS_TILT_X, 0);
+                send_wacom_event(EV_ABS, ABS_TILT_Y, 0);
+                send_wacom_event(0, 0, 0);
+                // finish_wacom_events();
+                if (!pen_down)
+                {
+                    // send_wacom_event(EV_KEY, BTN_TOUCH, 1);
+                    send_wacom_event(0, 0, 0);
+                    // finish_wacom_events();
+                    // usleep(sleep_after_pen_down_ms * 1000);  // <---- If I remove this, strokes are missing
+                    usleep(1000);
+                    pen_down = true;
+                }
+            }
+        }
+        //printf("\n");
+        if (pen_down)
+        {
+            send_wacom_event(EV_ABS, ABS_X, (int)y);
+            send_wacom_event(EV_ABS, ABS_Y, (int)x);
+            // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+            send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
+            // finish_wacom_events();
+        }
+        send_wacom_event(EV_KEY, BTN_TOOL_PEN, 0);
+        send_wacom_event(0, 0, 0);
+        // finish_wacom_events();
+        // finish_wacom_events();
+    }
+
+
+    cursor_x += font_scale * char_width;
+    // if (cursor_x > limit_right)
+    // {
+    //    if (wrap_ok)
+    //        word_wrap();
+    //    else
+    //        new_line();
+    //}
+
+}
+
 //////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
     // Remove buffer on stdout.
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    //
-    segment_t data;
-
     // Draw a line
     int x;
     int y;
 
-    x = 14129;
-    y = 2800;
+    x = 1000;
+    y = 200;
 
+    press_ui_button(50,12100);
 
-    for (int i=0; i<7; i++) {
-        segment_write_data(&sdata[i]);
+    for (int j=0; j<10; j++) {
+
+        for (int i=0; i<NDATA; i++) {
+            segment_translate(&sdata[i],x,y);
+            segment_write_data(&sdata[i]);
+        }
+        usleep(100);
+
     }
+
+    const char* current_font = "hershey";
+    int ascii_value = 0x41;
+    int num_strokes;
+    int char_width;
+    const gint8* stroke_data = get_font_char(current_font, ascii_value, &num_strokes, &char_width);
+    stroke_data = stroke_data;
+
+    wacom_char(ascii_value, wrap_ok);
+
 
     exit(0);
 
-    // Pen point
-    segment_set_time(&data);
-
-    data.type = 1;
-    data.code = 320;
-    data.value = 1;
-    segment_write_data(&data);
-    data.type = 3;
-    data.code = 0;
-    data.value = x;
-    segment_write_data(&data);
-    data.type = 3;
-    data.code = 1;
-    data.value = y;
-    segment_write_data(&data);
-
-    data.type = 3;
-    data.code = 25;
-    data.value = 70;
-    segment_write_data(&data);
-    data.type = 3;
-    data.code = 26;
-    data.value = 284161296;
-    segment_write_data(&data);
-    data.type = 3;
-    data.code = 27;
-    data.value = 284161296;
-    segment_write_data(&data);
-
-    segment_write_end(&data);
-    usleep(1600);
-
-    for(int i=0; i<1000; i++) {
-        x += 5;
-
-        segment_set_time(&data);
-        data.type = 3;
-        data.code = 0;
-        data.value = x;
-        segment_write_data(&data);
-        data.type = 3;
-        data.code = 1;
-        data.value = y;
-        segment_write_data(&data);
-        data.type = 3;
-        data.code = 25;
-        data.value = 10;
-        segment_write_data(&data);
-
-        segment_write_end(&data);
-        usleep(1600);
-
-    }
-
-    segment_set_time(&data);
-        data.type = 1;
-        data.code = 320;
-        data.value = 0;
-        segment_write_data(&data);
-        segment_write_end(&data);
-
-        // Pen up
-        //segment_set_time(&data);
-        //segment_pen_up(&data);
-        //segment_write_data(&data);
-        usleep(1600);
-    }
+}

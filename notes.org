@@ -61,8 +61,17 @@ See
 - https://github.com/linuxwacom/input-wacom/wiki/Analysing-kernel-events
 - https://github.com/Wacom-Developer/wacom-device-kit-linux
 
-*** Communiuty Software
+*** Community Software
 **** rmkit
 https://github.com/rmkit-dev/rmkit.git
 
+**** Crazy Cow
+See:  https://github.com/machinelevel/sp425-crazy-cow
+
+This is another keyboard project for reMarkable.
+- Requires a 'service' installation.
+- Uses standard keyboards.
+- Used Hersey font.
+
+ 
 
