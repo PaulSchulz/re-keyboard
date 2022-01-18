@@ -278,17 +278,33 @@ typedef struct _point_t {
     float y;
 } point_t;
 
-GList* add_point (GList* list, float x, float y){
+GList* prepend_point (GList* list, float x, float y){
     point_t* new_point  = malloc(sizeof(point_t));
     new_point->x=x;
     new_point->y=y;
 
-    list = g_list_append(list,new_point);
+    list = g_list_prepend(list, new_point);
     return list;
 }
 
 // Test Stroke Data
 gint8 test_stroke_data[] = { 8, 18,   9,21,1,0,-1,-1,9,21,17,0,-1,-1,4,7,14,7,};
+
+// Load stroke data
+// Algorithm: Add points to front of list then reverse to order.
+GList* stroke_load (const gint8* stroke_data,
+                         int num_strokes,
+                         GList* strokes) {
+
+    for (int i=0; i<num_strokes; i++) {
+        float raw_x = stroke_data[2*i + 0];
+        float raw_y = stroke_data[2*i + 1];
+        prepend_point(runner, raw_x, raw_y);
+    }
+
+    strokes = g_list_reverse(strokes);
+    return strokes;
+}
 
 static void strokes_interp (const gint8* stroke_data,
                             int num_strokes,
