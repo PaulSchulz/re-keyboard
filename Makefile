@@ -1,7 +1,9 @@
-.phony: all clean
+.phony: all src clean
 
 all: src
+
+src:
 	make -C $<
 
-clean: src
+clean: src doc
 	make -C $< clean
