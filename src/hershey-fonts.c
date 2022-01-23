@@ -1,4 +1,5 @@
 #include <glib.h>
+#include <stdio.h> // For stderr DEBUG
 
 // The font data here was modified from
 // http://paulbourke.net/dataformats/hershey/
@@ -105,6 +106,10 @@ static const gint8 hershey_font_simplex_compact[95][112] = {
 
 const gint8* get_font_char(const char* font_name, char ascii_value, int* out_num_verts, int* out_horiz_dist)
 {
+    fprintf(stderr, "DEBUG: get_font_char()\n");
+    fprintf(stderr, "DEBUG:   font_name:   %s\n", font_name);
+    fprintf(stderr, "DEBUG:   ascii_value: %d\n", ascii_value);
+
     if (1 || !strcmp(font_name, "hershey"))
     {
         if (ascii_value >= 32 || ascii_value <= 126)
@@ -112,6 +117,10 @@ const gint8* get_font_char(const char* font_name, char ascii_value, int* out_num
             const gint8* char_data = hershey_font_simplex_compact[ascii_value - 32];
             *out_num_verts = char_data[0];
             *out_horiz_dist = char_data[1];
+
+            fprintf(stderr, "DEBUG:   out_num_verts:   %d\n", *out_num_verts);
+            fprintf(stderr, "DEBUG:   out_horiz_dist:  %d\n", *out_horiz_dist);
+
             return char_data + 2;
         }
     }

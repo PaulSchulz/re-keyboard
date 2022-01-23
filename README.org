@@ -7,13 +7,27 @@
 ** Introduction
 Virtual keyboard for Remarkable tablet
 
-Connect to your reMarkable tablet and use a regular keyboard to enter text on
-the tablet.
+*Work in Progress* - Warning. This code is under active development and is in an
+unknown state which will change from day-to-day. While designed not to be
+inherently dangerous, no guaranties are provided. This software connects to a
+reMarkable tablet via SSH using the default root account. This allows hardware
+level modifications, which may render the device unusable and unrecoverable. Use
+at your own risk,
 
-Currently only available as C source code. 
+*** Features
+- Connect to your reMarkable tablet and use a regular keyboard to enter text on
+  the tablet.
+- No additional software installation required on reMarkable hardware.
+
+*** Development
+Currently this software is only available as C source code and needs to be built
+from source.
+
+See [[notes.org]] for more details about the development enviromment, design and
+process.
 
 ** Build
-
+Packages required: TBD
 #+begin_src shell
   make
 #+end_src

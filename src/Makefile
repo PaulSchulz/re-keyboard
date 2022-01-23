@@ -1,6 +1,6 @@
 .phony: all clean
 
-all: re-keyboard re-record re-draw re-read
+all: re-keyboard re-record re-draw re-read reGUI
 
 re-keyboard: main.o
 	gcc -Wall -Werror -o $@ main.o `pkg-config --libs gtk+-3.0` -lm
@@ -37,6 +37,9 @@ re-read.o: re-read.c
 	gcc -Wall -Werror `pkg-config --cflags gtk+-3.0` -o $@ -c $<
 
 
+reGUI: re-gui.c
+	gcc `pkg-config --cflags gtk4` -o $@ $< `pkg-config --libs gtk4`
+
 
 clean:
-	-rm re-keyboard re-record re-draw re-read *.o
+	-rm re-keyboard re-record re-draw re-read reGUI *.o

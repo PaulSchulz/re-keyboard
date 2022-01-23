@@ -4,7 +4,7 @@
   - [[#references][References]]
 
 ** Introduction
-This project is experimental (worst than alpha) work in progress.
+This project is experimental (worst than alpha).
 
 Only use this code as an example of an incomplete project.
 
@@ -71,7 +71,7 @@ See:  https://github.com/machinelevel/sp425-crazy-cow
 This is another keyboard project for reMarkable.
 - Requires a 'service' installation.
 - Uses standard keyboards.
-- Used Hersey font.
+- Uses Hersey font.
 
  
 

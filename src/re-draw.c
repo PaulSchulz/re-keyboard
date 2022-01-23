@@ -80,6 +80,10 @@ void segment_pen_up (segment_t* data) {
 
 //////////////////////////////////////////////////////////////////////////////
 void segment_write_data (segment_t* data) {
+    fprintf(stderr,"DEBUG: segment_write_data() - %d,%d,%d\n",
+            data->type,
+            data->code,
+            data->value);
     /* fwrite(&data, 16, 1, fp_out); */
 
     putchar((data->tv_sec) & 0xFF);
@@ -222,6 +226,8 @@ segment_t* segment_translate(segment_t* data, int dx, int dy) {
 
 static void send_wacom_event(int type, int code, int value)
 {
+//    fprintf(stderr,"DEBUG: send_wacom_event() %d,%d,%d\n",type,code,value);
+
     segment_t segment;
     segment_set_time(&segment);
     segment.type  = type;
@@ -249,8 +255,6 @@ static void press_ui_button(int x, int y)
     // finish_wacom_events();
     //send_wacom_event(EV_KEY, BTN_TOUCH, 1);
     send_wacom_event(0, 0, 0);
-    // finish_wacom_events();
-    // finish_wacom_events();
     usleep(10 * 1000);  // <---- If I remove this, strokes are missing.
 
     // Pen up
@@ -258,7 +262,6 @@ static void press_ui_button(int x, int y)
     send_wacom_event(EV_ABS, ABS_Y, x);
     // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
     send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
-    // finish_wacom_events();
     send_wacom_event(EV_KEY, BTN_TOOL_PEN, 0);
     send_wacom_event(0, 0, 0);
     // finish_wacom_events();
@@ -310,22 +313,75 @@ gint8 test_stroke_data[] = { 8, 18,   9,21,1,0,-1,-1,9,21,17,0,-1,-1,4,7,14,7,};
 
 // Load stroke data
 // Algorithm: Add points to front of list then reverse to order.
-GList* stroke_load (const gint8* stroke_data,
-                         int num_strokes,
-                         GList* strokes) {
+GList* stroke_load (GList*       strokes,
+                    const gint8* stroke_data,
+                    int          num_strokes) {
+
+    fprintf(stderr, "DEBUG: stroke_load()\n");
+    fprintf(stderr, "DEBUG:   num_strokes: %d\n", num_strokes);
 
     for (int i=0; i<num_strokes; i++) {
         float raw_x = stroke_data[2*i + 0];
         float raw_y = stroke_data[2*i + 1];
-        prepend_point(runner, raw_x, raw_y);
+        runner = prepend_point(runner, raw_x, raw_y);
+
+        fprintf(stderr,"DEBUG:   (raw_x,raw_y)=(%f,%f)\n",
+                raw_x,
+                raw_y);
+
+        fprintf(stderr,"DEBUG:   size: %d\n", g_list_length(strokes));
+        fprintf(stderr,"DEBUG:   size: %d\n", g_list_length(runner));
     }
 
-    strokes = g_list_reverse(strokes);
+    strokes = g_list_reverse(runner);
+                        return strokes;
+}
+
+GList* stroke_scale (GList* strokes,
+                     float  xscale,
+                     float  yscale) {
+
+    GList* runner;
+    point_t* data;
+
+    runner = strokes;
+    while(runner != NULL){
+        data = (point_t*)runner->data;
+        if (data->x != -1 && data->y != -1) {
+            data->x = xscale*(data->x);
+            data->y = yscale*(data->y);
+        }
+
+        runner = runner->next;
+    }
+
+    return strokes;
+}
+
+GList* stroke_translate (GList* strokes,
+                         float  xshift,
+                         float  yshift) {
+
+    GList* runner;
+    point_t* data;
+
+    runner = strokes;
+    while(runner != NULL){
+        data = (point_t*)runner->data;
+        if (data->x != -1 && data->y != -1) {
+            data->x = xshift+(data->x);
+            data->y = yshift+(data->y);
+        }
+        runner = runner->next;
+    }
+
     return strokes;
 }
 
 // TODO stroke_interp needs to be tested.
-GList* stroke_interp (GList* stroke) {
+GList* stroke_interpolate (GList* stroke) {
+    fprintf(stderr, "DEBUG: stroke_interpolate()\n");
+
     // This one actually works~
     float last_raw_x = -1;
     float last_raw_y = -1;
@@ -339,17 +395,25 @@ GList* stroke_interp (GList* stroke) {
         float raw_x = point->x;
         float raw_y = point->y;
         if (raw_x != -1 || raw_y != -1) {
+            fprintf(stderr,"DEBUG: valid_point (%f,%f)\n", raw_x, raw_y);
             // Segment end is defined.
             if (last_raw_x != -1 || last_raw_y != -1) {
+                fprintf(stderr,"DEBUG:   valid_previous_point (%f,%f)\n", last_raw_x, last_raw_y);
                 // Segment start and end are defined.
                 float desired_dx = raw_x - last_raw_x;
                 float desired_dy = raw_y - last_raw_y;
-                float length = font_scale * sqrt(desired_dx * desired_dx + desired_dy * desired_dy);
+                float length = sqrt(desired_dx * desired_dx + desired_dy * desired_dy);
+                // float length = font_scale * sqrt(desired_dx * desired_dx + desired_dy * desired_dy);
+
+                fprintf(stderr, "DEBUG:   length: %f\n", length);
 
                 if (length > 0.0001) {
                     // If length is larger then minimum step size then add
                     // interpolated values.
                     int subsegments = length / mini_segment_length - 1;
+
+                    fprintf(stderr,"DEBUG:   interpolation required, %d\n", subsegments);
+
                     for (int i = 0; i < subsegments; ++i) {
                         float t = (float)i / (float)subsegments;
                         float dx = t * desired_dx;
@@ -362,17 +426,114 @@ GList* stroke_interp (GList* stroke) {
                     }
                 }
             } else {
+                fprintf(stderr,"DEBUG:   start(-1,-1) previous point\n");
                 // Segment end is not defined.
                 // End of pen stroke.
                 // Move to next point.
-                last_raw_x = -1;
-                last_raw_y = -1;
             }
+        } else {
+            fprintf(stderr,"DEBUG: end(-1,-1) point\n");
         }
+        last_raw_x = raw_x;
+        last_raw_y = raw_y;
+
         runner = runner->next;
     }
     return stroke;
 }
+
+// TODO stroke_interp needs to be tested.
+GList* stroke_write (GList* stroke) {
+    fprintf(stderr, "DEBUG: stroke_write()\n");
+    fprintf(stderr, "DEBUG:   length: %d\n", g_list_length(stroke));
+
+    if (g_list_length(stroke) == 0){
+        return stroke;
+    }
+
+    // Initial strin, pen down
+    send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
+    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+    send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
+    send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
+    send_wacom_event(0, 0, 0);
+    // finish_wacom_events();
+
+    GList* runner;
+    runner = stroke;
+    point_t* data;
+
+    float x_prev = -1;
+    float y_prev = -1;
+    data = runner->data;
+    float x = data->x;
+    float y = data->y;
+
+    // TODO Remove when no longer required
+    x=x;
+    y=y;
+    x_prev=x_prev;
+    y_prev=y_prev;
+    //
+
+    while(runner != NULL) {
+        data = runner->data;
+        x = data->x;
+        y = data->y;
+
+        if (x != -1 || y != -1) {
+            // Valid end point
+
+            if (x_prev != -1 || y_prev != -1) {
+                // Valid start point -> Valid line segment
+                usleep(500);
+                send_wacom_event(EV_ABS, ABS_X, (int)y);
+                send_wacom_event(EV_ABS, ABS_Y, (int)x);
+                // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+                send_wacom_event(EV_ABS, ABS_PRESSURE, 3288);
+                send_wacom_event(EV_ABS, ABS_DISTANCE, 70);
+                send_wacom_event(EV_ABS, ABS_TILT_X, -6100);
+                send_wacom_event(EV_ABS, ABS_TILT_Y, 0);
+                send_wacom_event(0, 0, 0);
+
+            } else {
+                // Invalid start point -> Stoke start (pen up -> pen down)
+
+                send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
+                // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+                send_wacom_event(EV_ABS, ABS_X, (int)y);
+                send_wacom_event(EV_ABS, ABS_Y, (int)x);
+                send_wacom_event(EV_ABS, ABS_PRESSURE, 3240);
+                send_wacom_event(EV_ABS, ABS_DISTANCE, 10);
+                send_wacom_event(0, 0, 0);
+            }
+
+        } else {
+            //  Invalid end point
+            if (x_prev != -1 || y_prev != -1) {
+                // Valid start point -> End Segment
+                send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
+                send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
+                send_wacom_event(0, 0, 0);
+                usleep(800);
+            } else {
+                // In-valid start point -> Ignore extra invalid flags
+            }
+
+        }
+
+        x_prev = x;
+        y_prev = y;
+        runner = runner->next;
+    }
+
+    send_wacom_event(EV_KEY, BTN_TOOL_PEN, 0);
+    send_wacom_event(0, 0, 0);
+
+    return stroke;
+}
+//////////////////////////////////////////////////////////////////////////////
+
 
 static void wacom_char(char ascii_value, bool wrap_ok)
 {
@@ -398,59 +559,59 @@ static void wacom_char(char ascii_value, bool wrap_ok)
         send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
         send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
         send_wacom_event(0, 0, 0);
-            // finish_wacom_events();
+        // finish_wacom_events();
 
-            bool pen_down = false;
-            float x = 0;
-            float y = 0;
-            for (int stroke_index = 0; stroke_index < num_strokes; ++stroke_index)
+        bool pen_down = false;
+        float x = 0;
+        float y = 0;
+        for (int stroke_index = 0; stroke_index < num_strokes; ++stroke_index)
+        {
+            // TODO Fix measurements
+            // float dx = fstrokes[2 * stroke_index + 0];
+            // float dy = fstrokes[2 * stroke_index + 1];
+            float dx = 0;
+            float dy = 0;
+            if (dx == -1 && dy == -1)
             {
-                // TODO Fix measurements
-                // float dx = fstrokes[2 * stroke_index + 0];
-                // float dy = fstrokes[2 * stroke_index + 1];
-                float dx = 0;
-                float dy = 0;
-                if (dx == -1 && dy == -1)
+                if (pen_down)
                 {
-                    if (pen_down)
-                    {
-                        send_wacom_event(EV_ABS, ABS_X, (int)y);
-                        send_wacom_event(EV_ABS, ABS_Y, (int)x);
-                        // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
-                        send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
-                        send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
-                        send_wacom_event(0, 0, 0);
-                        // finish_wacom_events();
-                        // finish_wacom_events();
-                        usleep(1000);
-                        // usleep(sleep_after_pen_up_ms * 1000);
-                        pen_down = false;
-                    }
-                }
-                else
-                {
-                    x = (float)dx * font_scale + cursor_x;
-                    y = (float)dy * font_scale + cursor_y;
-                    // finish_wacom_events();
-                    // usleep(sleep_each_stroke_point_ms * 1000);
-                    usleep(1000);
                     send_wacom_event(EV_ABS, ABS_X, (int)y);
                     send_wacom_event(EV_ABS, ABS_Y, (int)x);
-                    send_wacom_event(EV_ABS, ABS_PRESSURE, 3288);
-                    send_wacom_event(EV_ABS, ABS_DISTANCE, 0);
-                    send_wacom_event(EV_ABS, ABS_TILT_X, 0);
-                    send_wacom_event(EV_ABS, ABS_TILT_Y, 0);
+                    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+                    send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
+                    send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
                     send_wacom_event(0, 0, 0);
                     // finish_wacom_events();
-                    if (!pen_down)
-                    {
-                        // send_wacom_event(EV_KEY, BTN_TOUCH, 1);
-                        send_wacom_event(0, 0, 0);
-                        // finish_wacom_events();
-                        // usleep(sleep_after_pen_down_ms * 1000);  // <---- If I remove this, strokes are missing
-                        usleep(1000);
-                        pen_down = true;
-                    }
+                    // finish_wacom_events();
+                    usleep(1000);
+                    // usleep(sleep_after_pen_up_ms * 1000);
+                    pen_down = false;
+                }
+            }
+            else
+            {
+                x = (float)dx * font_scale + cursor_x;
+                y = (float)dy * font_scale + cursor_y;
+                // finish_wacom_events();
+                // usleep(sleep_each_stroke_point_ms * 1000);
+                usleep(1000);
+                send_wacom_event(EV_ABS, ABS_X, (int)y);
+                send_wacom_event(EV_ABS, ABS_Y, (int)x);
+                send_wacom_event(EV_ABS, ABS_PRESSURE, 3288);
+                send_wacom_event(EV_ABS, ABS_DISTANCE, 0);
+                send_wacom_event(EV_ABS, ABS_TILT_X, 0);
+                send_wacom_event(EV_ABS, ABS_TILT_Y, 0);
+                send_wacom_event(0, 0, 0);
+                // finish_wacom_events();
+                if (!pen_down)
+                {
+                    // send_wacom_event(EV_KEY, BTN_TOUCH, 1);
+                    send_wacom_event(0, 0, 0);
+                    // finish_wacom_events();
+                    // usleep(sleep_after_pen_down_ms * 1000);  // <---- If I remove this, strokes are missing
+                    usleep(1000);
+                    pen_down = true;
+                }
                 }
             }
             //printf("\n");
@@ -465,60 +626,105 @@ static void wacom_char(char ascii_value, bool wrap_ok)
             send_wacom_event(EV_KEY, BTN_TOOL_PEN, 0);
             send_wacom_event(0, 0, 0);
             // finish_wacom_events();
-// finish_wacom_events();
+            // finish_wacom_events();
+        }
+
+
+        cursor_x += font_scale * char_width;
+        // if (cursor_x > limit_right)
+        // {
+        //    if (wrap_ok)
+        //        word_wrap();
+        //    else
+        //        new_line();
+        //}
+
     }
-
-
-    cursor_x += font_scale * char_width;
-    // if (cursor_x > limit_right)
-    // {
-    //    if (wrap_ok)
-    //        word_wrap();
-    //    else
-    //        new_line();
-    //}
-
-}
 
 //////////////////////////////////////////////////////////////////////////////
-int main(int argc, char *argv[]) {
-    // Remove buffer on stdout.
-    setvbuf(stdout, NULL, _IONBF, 0);
+// Utilities
+    GList* stroke_debug (char* tag, GList* stroke) {
+        fprintf(stderr,"DEBUG(%s): stroke_debug\n", tag);
+        fprintf(stderr,"DEBUG(%s): length of stroke: %d\n",
+                tag,
+                g_list_length(stroke));
 
-    // Draw a line
-    int x;
-    int y;
+        GList*     runner;
+        point_t* data;
 
-    x = 1000;
-    y = 200;
+        int count = 0;
+        runner = stroke;
+        while (runner != NULL) {
+            data = runner->data;
+            count++;
+            fprintf(stderr, "DEBUG(%s): %d (%f,%f)\n",
+                    tag,
+                    count, data->x, data->y);
+            runner = runner->next;
+        };
 
-    GList* stroke = NULL;
-
-    press_ui_button(50,12100);
-
-    for (int j=0; j<10; j++) {
-
-        for (int i=0; i<NDATA; i++) {
-            segment_translate(&sdata[i],x,y);
-            segment_write_data(&sdata[i]);
-        }
-        usleep(100);
-
+        fprintf(stderr,"DEBUG(%s): length of stroke: %d\n",
+                tag,
+                g_list_length(stroke));
+        return stroke;
     }
 
-    const char* current_font = "hershey";
-    int ascii_value = 0x41;
-    int num_strokes;
-    int char_width;
-    const gint8* stroke_data = get_font_char(current_font, ascii_value, &num_strokes, &char_width);
-    // stroke_data = stroke_data;
+//////////////////////////////////////////////////////////////////////////////
+    int main(int argc, char *argv[]) {
+        // Remove buffer on stdout.
+        setvbuf(stdout, NULL, _IONBF, 0);
 
-    stroke = stroke_load(stroke_data, num_strokes, stroke);
-    stroke = stroke_interp(stroke);
+        // Draw a line
+        int x;
+        int y;
 
-    wacom_char(ascii_value, wrap_ok);
+        x = 1000;
+        y = 200;
+        x=x;
+        y=y;
 
+        press_ui_button(6338,7085);
 
-    exit(0);
+        exit(0);
 
-}
+        for (int j=0; j<1; j++) {
+
+            for (int i=0; i<NDATA; i++) {
+                // segment_translate(&sdata[i],x,y);
+                segment_write_data(&sdata[i]);
+            }
+            usleep(100);
+
+        }
+
+        GList* stroke = NULL;
+
+        const char* current_font = "hershey";
+        int ascii_value = 0x41;
+        int num_strokes;
+        int char_width;
+
+        fprintf(stderr,"Write Font Character - %s (%d)\n", current_font, ascii_value);
+
+        const gint8* stroke_data = get_font_char(current_font, ascii_value, &num_strokes, &char_width);
+        // stroke_data = stroke_data;
+
+        // exit(0);
+
+        fprintf(stderr,"DEBUG: num_strokes: %d\n", num_strokes);
+        // stroke = stroke_debug("pre-load", stroke);
+        stroke = stroke_load(stroke, stroke_data, num_strokes);
+        // stroke = stroke_debug("load            ", stroke);
+        stroke = stroke_scale(stroke, 60, 60);
+        stroke = stroke_translate(stroke, 6000, 7000);
+        // stroke = stroke_debug("post_scale      ", stroke);
+        stroke = stroke_interpolate(stroke);
+        // stroke = stroke_debug("post-interpolate", stroke);
+        stroke = stroke_write(stroke);
+        // stroke = stroke_debug("post-write      ", stroke);
+
+        exit(0);
+
+        wacom_char(ascii_value, wrap_ok);
+
+    }

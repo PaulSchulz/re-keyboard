@@ -1,4 +1,6 @@
-.phony: clean
+.PHONY: all clean
+
+all:
 
 clean:
 	-rm -rf html
