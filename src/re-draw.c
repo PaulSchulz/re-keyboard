@@ -685,17 +685,32 @@ static void wacom_char(char ascii_value, bool wrap_ok)
 
         press_ui_button(6338,7085);
 
-        exit(0);
-
-        for (int j=0; j<1; j++) {
+        for (int j=0; j<10; j++) {
 
             for (int i=0; i<NDATA; i++) {
-                // segment_translate(&sdata[i],x,y);
-                segment_write_data(&sdata[i]);
+                 segment_translate(&sdata[i],x,y);
+                 segment_write_data(&sdata[i]);
             }
             usleep(100);
 
         }
+
+        // Load data into GList
+        for (int i=0; i<NDATA; i++) {
+            guint32 tv_sec  = sdata[i].tv_sec;
+            guint32 tv_usec = sdata[i].tv_usec;
+            guint16 type    = sdata[i].type;
+            guint16 code    = sdata[i].code;
+            guint32 value   = sdata[i].value;
+
+            tv_sec = tv_sec;
+            tv_usec = tv_usec;
+            type = type;
+            code = code;
+            value = value;
+        }
+
+        exit(0);
 
         GList* stroke = NULL;
 
