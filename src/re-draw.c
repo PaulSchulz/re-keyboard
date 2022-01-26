@@ -236,7 +236,31 @@ static void send_wacom_event(int type, int code, int value)
     segment_write_data(&segment);
 }
 
-static void press_ui_button(int x, int y)
+/** \brief User Interface Buttons
+
+Location of User Interface Buttons in
+on-screen menu in screen 'natural'
+units, as reported in output from
+/dev/input/event1
+
+<pre>
+| Button            | Right Hand  | Left Hand
+| ----------------- | ----------- | -----------
+| Exit Document     | 20080,15200 | 20080,  800
+| Menu Open/Close   | 20080,  800 | 20080,15200
+| Pen Tool          | 18780,  800 | 18780,15200
+| Pen Options       | 17480,  800 | 17480,15200
+| Erase Tool        | 16280,  800 | 16280,15200
+| Select Tool       | 14880,  800 | 14880,15200
+| Undo              | 13580,  800 | 13580,15200
+| Redo              | 12280,  800 | 12280,15200
+| Show Pages        |  4680,  800 |  4680,15200
+| Show Layers       |  3380,  800 |  3380,15200
+| Export            |  2080,  800 |  2080,15200
+| Document Settings |  780,   800 |   780,15200
+</pre>
+*/
+void press_ui_button(int x, int y)
 {
     // Pen down
     send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
@@ -245,8 +269,8 @@ static void press_ui_button(int x, int y)
     send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
     send_wacom_event(0, 0, 0);
     // finish_wacom_events();
-    send_wacom_event(EV_ABS, ABS_X, y);
-    send_wacom_event(EV_ABS, ABS_Y, x);
+    send_wacom_event(EV_ABS, ABS_X, x);
+    send_wacom_event(EV_ABS, ABS_Y, y);
     send_wacom_event(EV_ABS, ABS_PRESSURE, 3288);
     send_wacom_event(EV_ABS, ABS_DISTANCE, 0);
     send_wacom_event(EV_ABS, ABS_TILT_X, 0);
@@ -311,8 +335,13 @@ GList* prepend_point (GList* list, float x, float y){
 // Test Stroke Data
 gint8 test_stroke_data[] = { 8, 18,   9,21,1,0,-1,-1,9,21,17,0,-1,-1,4,7,14,7,};
 
-// Load stroke data
-// Algorithm: Add points to front of list then reverse to order.
+/// \brief Load stroke data
+///
+/// Convert the stoke data stored in an array as x,y pairs into a GList of
+/// type. Uses prepenp_point(list,x,y) to add each new point.
+///
+/// The algorithm adds points to front of list, then reverses the list so that
+/// it is correctly ordered.
 GList* stroke_load (GList*       strokes,
                     const gint8* stroke_data,
                     int          num_strokes) {
@@ -336,7 +365,10 @@ GList* stroke_load (GList*       strokes,
     strokes = g_list_reverse(runner);
                         return strokes;
 }
-
+/// \brief Scale the stroke data xscale and yscale
+///
+/// Scale the stroke data stored in strokes by the amounts given in xscale and
+/// yscale. Return the same list.
 GList* stroke_scale (GList* strokes,
                      float  xscale,
                      float  yscale) {
@@ -358,6 +390,10 @@ GList* stroke_scale (GList* strokes,
     return strokes;
 }
 
+/// \brief Translate the stroke by (xshift,yshift)
+///
+/// Translate the stroke data stored in strokes by the amounts given in xshift
+/// and yshift. Return the same list.
 GList* stroke_translate (GList* strokes,
                          float  xshift,
                          float  yshift) {
@@ -643,76 +679,111 @@ static void wacom_char(char ascii_value, bool wrap_ok)
 
 //////////////////////////////////////////////////////////////////////////////
 // Utilities
-    GList* stroke_debug (char* tag, GList* stroke) {
-        fprintf(stderr,"DEBUG(%s): stroke_debug\n", tag);
-        fprintf(stderr,"DEBUG(%s): length of stroke: %d\n",
+
+/// \brief Stroke debugging utility
+///
+/// Walk stroke list and print details.
+GList* stroke_debug (char* tag, GList* stroke) {
+    fprintf(stderr,"DEBUG(%s): stroke_debug\n", tag);
+    fprintf(stderr,"DEBUG(%s): length of stroke: %d\n",
+            tag,
+            g_list_length(stroke));
+
+    GList*     runner;
+    point_t* data;
+
+    int count = 0;
+    runner = stroke;
+    while (runner != NULL) {
+        data = runner->data;
+        count++;
+        fprintf(stderr, "DEBUG(%s): %d (%f,%f)\n",
                 tag,
-                g_list_length(stroke));
+                count, data->x, data->y);
+        runner = runner->next;
+    };
 
-        GList*     runner;
-        point_t* data;
-
-        int count = 0;
-        runner = stroke;
-        while (runner != NULL) {
-            data = runner->data;
-            count++;
-            fprintf(stderr, "DEBUG(%s): %d (%f,%f)\n",
-                    tag,
-                    count, data->x, data->y);
-            runner = runner->next;
-        };
-
-        fprintf(stderr,"DEBUG(%s): length of stroke: %d\n",
-                tag,
-                g_list_length(stroke));
-        return stroke;
-    }
+    fprintf(stderr,"DEBUG(%s): length of stroke: %d\n",
+            tag,
+            g_list_length(stroke));
+    return stroke;
+}
 
 //////////////////////////////////////////////////////////////////////////////
-    int main(int argc, char *argv[]) {
-        // Remove buffer on stdout.
-        setvbuf(stdout, NULL, _IONBF, 0);
+/// \brief Main application function
+///
+/// The main entry point of the application
+///
+/// There are several different encodings for stroke/path data.
+/// - Hersey font data is stored as a list of integers, alternating x,y values.
+/// - ReMarkable stroke data is stored as a collection of 'type,code,value' triplets
+/// - GList - Strokes are stored as point_t x,y data points in a linked list.
 
-        // Draw a line
-        int x;
-        int y;
+int main (int argc, char *argv[]) {
+    // Remove buffer on stdout.
+    setvbuf(stdout, NULL, _IONBF, 0);
 
-        x = 1000;
-        y = 200;
-        x=x;
-        y=y;
+    int xzero = -6000;
+    int yzero = -6800;
 
-        press_ui_button(6338,7085);
+    // Draw a line
+    int x;
+    int y;
 
-        for (int j=0; j<10; j++) {
+    x = 18500;  // +280
+    y = 600;    // +200
+    x=x;
+    y=y;
 
-            for (int i=0; i<NDATA; i++) {
-                 segment_translate(&sdata[i],x,y);
-                 segment_write_data(&sdata[i]);
-            }
-            usleep(100);
 
+    //press_ui_button(20080, 15200);
+    //sleep(2);
+    //press_ui_button(20080, 15200);
+
+    for (int i=0; i<NDATA; i++) {
+        segment_translate(&sdata[i],xzero,yzero);
+        segment_translate(&sdata[i],x,y);
+        segment_write_data(&sdata[i]);
+    }
+    sleep(2);
+    for (int i=0; i<NDATA; i++) {
+        segment_write_data(&sdata[i]);
+    }
+
+    exit(0);
+
+    GList* strokes = NULL;
+    float new_x = 0;
+    float new_y = 0;
+
+    // Load data into GList
+    for (int i=0; i<NDATA; i++) {
+        guint32 tv_sec  = sdata[i].tv_sec;
+        guint32 tv_usec = sdata[i].tv_usec;
+        guint16 type    = sdata[i].type;
+        guint16 code    = sdata[i].code;
+        guint32 value   = sdata[i].value;
+
+        tv_sec = tv_sec;
+        tv_usec = tv_usec;
+        type = type;
+        code = code;
+        value = value;
+
+        if ((type == 3) && (code == 0)) {
+            new_y = value;
+        } else if ((type == 3) ^ (code == 1)) {
+            new_x = value;
+        } else if ((type == 0) && (code == 0) && (value == 0)) {
+            strokes = prepend_point(strokes, new_x, new_y);
         }
+    }
+    strokes = g_list_reverse(strokes);
 
-        // Load data into GList
-        for (int i=0; i<NDATA; i++) {
-            guint32 tv_sec  = sdata[i].tv_sec;
-            guint32 tv_usec = sdata[i].tv_usec;
-            guint16 type    = sdata[i].type;
-            guint16 code    = sdata[i].code;
-            guint32 value   = sdata[i].value;
-
-            tv_sec = tv_sec;
-            tv_usec = tv_usec;
-            type = type;
-            code = code;
-            value = value;
-        }
+        strokes = stroke_translate(strokes, 0, 200);
+        strokes = stroke_write(strokes);
 
         exit(0);
-
-        GList* stroke = NULL;
 
         const char* current_font = "hershey";
         int ascii_value = 0x41;

@@ -38,7 +38,28 @@ type == 3 && code == 25 -> value == distance
 type == 3 && code == 26 -> value == tilt x
 type == 3 && code == 27 -> value == tilt y
 
+
 ** Functionality
+The reMarkable2 has on-screen buttons in the following locations:
+
+| Button            | Right Hand  | Left Hand   |
+|-------------------+-------------+-------------|
+| Exit Document     | 20080,15200 | 20080,  800 |
+| Menu Open/Close   | 20080,  800 | 20080,15200 |
+| Pen Tool          | 18780,  800 | 18780,15200 |
+| Pen Options       | 17480,  800 | 17480,15200 |
+| Erase Tool        | 16280,  800 | 16280,15200 |
+| Select Tool       | 14880,  800 | 14880,15200 |
+| Undo              | 13580,  800 | 13580,15200 |
+| Redo              | 12280,  800 | 12280,15200 |
+| Show Pages        | 4680,  800  | 4680,15200  |
+| Show Layers       | 3380,  800  | 3380,15200  |
+| Export            | 2080,  800  | 2080,15200  |
+| Document Settings | 780,   800  | 780,15200   |
+|-------------------+-------------+-------------|
+
+It is possible to remote activate these buttons by writing pen events to
+/dev/input/events1. 
 
 ** References
 *** WACOM Hardware

@@ -1,6 +1,9 @@
-.PHONY: all clean
+.PHONY: all doc clean
 
-all:
+all: doc
+
+doc:
+	doxygen
 
 clean:
 	-rm -rf html
