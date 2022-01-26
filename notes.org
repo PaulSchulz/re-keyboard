@@ -22,7 +22,7 @@ See: https://github.com/funkey/recept
 
 
 From this project
-
+#+begin_src ascii
 type == 1 && code == 320 && value == 1 -> pen in
 type == 1 && code == 320 && value == 0 -> pen out
 type == 1 && code == 321 && value == 1 -> eraser in
@@ -37,6 +37,7 @@ type == 3 && code == 24 -> value == pressure
 type == 3 && code == 25 -> value == distance
 type == 3 && code == 26 -> value == tilt x
 type == 3 && code == 27 -> value == tilt y
+#+end_src
 
 
 ** Functionality
