@@ -216,13 +216,15 @@ segment_t* segment_translate(segment_t* data, int dx, int dy) {
 #define EV_KEY         1
 #define EV_ABS         3
 
-#define BTN_TOOL_PEN 320
-#define ABS_PRESSURE  24
-#define ABS_DISTANCE  25
-#define ABS_X          0
-#define ABS_Y          1
-#define ABS_TILT_X    26
-#define ABS_TILT_Y    27
+#define BTN_TOOL_PEN     320
+#define BTN_TOOL_ERASER  321
+#define BTN_TOOL_DOWN    330
+#define ABS_PRESSURE      24
+#define ABS_DISTANCE      25
+#define ABS_X              0
+#define ABS_Y              1
+#define ABS_TILT_X        26
+#define ABS_TILT_Y        27
 
 static void send_wacom_event(int type, int code, int value)
 {
@@ -263,9 +265,9 @@ units, as reported in output from
 void press_ui_button(int x, int y)
 {
     // Pen down
-    send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
-    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
-    send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
+    send_wacom_event(EV_KEY, BTN_TOOL_PEN,  1);
+    send_wacom_event(EV_KEY, BTN_TOOL_DOWN, 1);
+    send_wacom_event(EV_ABS, ABS_PRESSURE,  0);
     send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
     send_wacom_event(0, 0, 0);
     // finish_wacom_events();
@@ -284,8 +286,8 @@ void press_ui_button(int x, int y)
     // Pen up
     send_wacom_event(EV_ABS, ABS_X, y);
     send_wacom_event(EV_ABS, ABS_Y, x);
-    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
     send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
+    send_wacom_event(EV_KEY, BTN_TOOL_DOWN, 0);
     send_wacom_event(EV_KEY, BTN_TOOL_PEN, 0);
     send_wacom_event(0, 0, 0);
     // finish_wacom_events();
@@ -478,7 +480,11 @@ GList* stroke_interpolate (GList* stroke) {
     return stroke;
 }
 
-// TODO stroke_interp needs to be tested.
+/// \brief Writes stroke data out re2 pen format
+///
+/// Stroke data is stored in a GList at
+/// x,y points. The end of a stroke (pen
+/// up) is indicated by a point (-1,-1).
 GList* stroke_write (GList* stroke) {
     fprintf(stderr, "DEBUG: stroke_write()\n");
     fprintf(stderr, "DEBUG:   length: %d\n", g_list_length(stroke));
@@ -487,13 +493,12 @@ GList* stroke_write (GList* stroke) {
         return stroke;
     }
 
-    // Initial strin, pen down
+    // Initial data, pen down
     send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
-    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+    send_wacom_event(EV_KEY, BTN_TOOL_DOWN, 1);
     send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
     send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
     send_wacom_event(0, 0, 0);
-    // finish_wacom_events();
 
     GList* runner;
     runner = stroke;
@@ -525,7 +530,6 @@ GList* stroke_write (GList* stroke) {
                 usleep(500);
                 send_wacom_event(EV_ABS, ABS_X, (int)y);
                 send_wacom_event(EV_ABS, ABS_Y, (int)x);
-                // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
                 send_wacom_event(EV_ABS, ABS_PRESSURE, 3288);
                 send_wacom_event(EV_ABS, ABS_DISTANCE, 70);
                 send_wacom_event(EV_ABS, ABS_TILT_X, -6100);
@@ -535,8 +539,8 @@ GList* stroke_write (GList* stroke) {
             } else {
                 // Invalid start point -> Stoke start (pen up -> pen down)
 
-                send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
-                // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
+                //send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
+                send_wacom_event(EV_KEY, BTN_TOOL_DOWN, 1);
                 send_wacom_event(EV_ABS, ABS_X, (int)y);
                 send_wacom_event(EV_ABS, ABS_Y, (int)x);
                 send_wacom_event(EV_ABS, ABS_PRESSURE, 3240);
@@ -548,6 +552,7 @@ GList* stroke_write (GList* stroke) {
             //  Invalid end point
             if (x_prev != -1 || y_prev != -1) {
                 // Valid start point -> End Segment
+                send_wacom_event(EV_KEY, BTN_TOOL_DOWN, 0);
                 send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
                 send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
                 send_wacom_event(0, 0, 0);
@@ -563,119 +568,12 @@ GList* stroke_write (GList* stroke) {
         runner = runner->next;
     }
 
+    send_wacom_event(EV_KEY, BTN_TOOL_DOWN, 0);
     send_wacom_event(EV_KEY, BTN_TOOL_PEN, 0);
     send_wacom_event(0, 0, 0);
 
     return stroke;
 }
-//////////////////////////////////////////////////////////////////////////////
-
-
-static void wacom_char(char ascii_value, bool wrap_ok)
-{
-    int num_strokes = 0;
-    int char_width = 0;
-    char* current_font = "hershey";
-
-    const gint8* stroke_data = get_font_char(current_font, ascii_value, &num_strokes, &char_width);
-    if (!stroke_data)
-        return;
-
-    // Interpolate the strokes
-    // static std::vector<float> fstrokes; // static to avoid constant allocation
-    //fstrokes.clear();
-    //GList* fstrokes = NULL;
-    //stroke_interp(stroke_data, num_strokes, fstrokes);
-    //num_strokes = fstrokes.size() >> 1;
-
-    if (num_strokes > 0)
-    {
-        send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
-        // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
-        send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
-        send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
-        send_wacom_event(0, 0, 0);
-        // finish_wacom_events();
-
-        bool pen_down = false;
-        float x = 0;
-        float y = 0;
-        for (int stroke_index = 0; stroke_index < num_strokes; ++stroke_index)
-        {
-            // TODO Fix measurements
-            // float dx = fstrokes[2 * stroke_index + 0];
-            // float dy = fstrokes[2 * stroke_index + 1];
-            float dx = 0;
-            float dy = 0;
-            if (dx == -1 && dy == -1)
-            {
-                if (pen_down)
-                {
-                    send_wacom_event(EV_ABS, ABS_X, (int)y);
-                    send_wacom_event(EV_ABS, ABS_Y, (int)x);
-                    // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
-                    send_wacom_event(EV_ABS, ABS_PRESSURE, 0);
-                    send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
-                    send_wacom_event(0, 0, 0);
-                    // finish_wacom_events();
-                    // finish_wacom_events();
-                    usleep(1000);
-                    // usleep(sleep_after_pen_up_ms * 1000);
-                    pen_down = false;
-                }
-            }
-            else
-            {
-                x = (float)dx * font_scale + cursor_x;
-                y = (float)dy * font_scale + cursor_y;
-                // finish_wacom_events();
-                // usleep(sleep_each_stroke_point_ms * 1000);
-                usleep(1000);
-                send_wacom_event(EV_ABS, ABS_X, (int)y);
-                send_wacom_event(EV_ABS, ABS_Y, (int)x);
-                send_wacom_event(EV_ABS, ABS_PRESSURE, 3288);
-                send_wacom_event(EV_ABS, ABS_DISTANCE, 0);
-                send_wacom_event(EV_ABS, ABS_TILT_X, 0);
-                send_wacom_event(EV_ABS, ABS_TILT_Y, 0);
-                send_wacom_event(0, 0, 0);
-                // finish_wacom_events();
-                if (!pen_down)
-                {
-                    // send_wacom_event(EV_KEY, BTN_TOUCH, 1);
-                    send_wacom_event(0, 0, 0);
-                    // finish_wacom_events();
-                    // usleep(sleep_after_pen_down_ms * 1000);  // <---- If I remove this, strokes are missing
-                    usleep(1000);
-                    pen_down = true;
-                }
-                }
-            }
-            //printf("\n");
-            if (pen_down)
-            {
-                send_wacom_event(EV_ABS, ABS_X, (int)y);
-                send_wacom_event(EV_ABS, ABS_Y, (int)x);
-                // send_wacom_event(EV_KEY, BTN_TOUCH, 0);
-                send_wacom_event(EV_ABS, ABS_DISTANCE, 80);
-                // finish_wacom_events();
-            }
-            send_wacom_event(EV_KEY, BTN_TOOL_PEN, 0);
-            send_wacom_event(0, 0, 0);
-            // finish_wacom_events();
-            // finish_wacom_events();
-        }
-
-
-        cursor_x += font_scale * char_width;
-        // if (cursor_x > limit_right)
-        // {
-        //    if (wrap_ok)
-        //        word_wrap();
-        //    else
-        //        new_line();
-        //}
-
-    }
 
 //////////////////////////////////////////////////////////////////////////////
 // Utilities
@@ -735,8 +633,8 @@ int main (int argc, char *argv[]) {
     x=x;
     y=y;
 
-
-    //press_ui_button(20080, 15200);
+    // Toggle Menu (Left Handed)
+    press_ui_button(20080, 15200);
     //sleep(2);
     //press_ui_button(20080, 15200);
 
@@ -745,13 +643,8 @@ int main (int argc, char *argv[]) {
         segment_translate(&sdata[i],x,y);
         segment_write_data(&sdata[i]);
     }
-    sleep(2);
-    for (int i=0; i<NDATA; i++) {
-        segment_write_data(&sdata[i]);
-    }
 
-    exit(0);
-
+    //////////////////////////////////////////////////////////
     GList* strokes = NULL;
     float new_x = 0;
     float new_y = 0;
@@ -780,37 +673,34 @@ int main (int argc, char *argv[]) {
     }
     strokes = g_list_reverse(strokes);
 
-        strokes = stroke_translate(strokes, 0, 200);
-        strokes = stroke_write(strokes);
+    strokes = stroke_translate(strokes, 0, 200);
+    strokes = stroke_write(strokes);
 
-        exit(0);
 
-        const char* current_font = "hershey";
-        int ascii_value = 0x41;
-        int num_strokes;
-        int char_width;
+    const char* current_font = "hershey";
+    int ascii_value = 0x41;
+    int num_strokes;
+    int char_width;
 
-        fprintf(stderr,"Write Font Character - %s (%d)\n", current_font, ascii_value);
+    fprintf(stderr,"Write Font Character - %s (%d)\n", current_font, ascii_value);
 
-        const gint8* stroke_data = get_font_char(current_font, ascii_value, &num_strokes, &char_width);
-        // stroke_data = stroke_data;
+    const gint8* stroke_data = get_font_char(current_font, ascii_value, &num_strokes, &char_width);
+    // stroke_data = stroke_data;
 
-        // exit(0);
+    // exit(0);
 
-        fprintf(stderr,"DEBUG: num_strokes: %d\n", num_strokes);
-        // stroke = stroke_debug("pre-load", stroke);
-        stroke = stroke_load(stroke, stroke_data, num_strokes);
-        // stroke = stroke_debug("load            ", stroke);
-        stroke = stroke_scale(stroke, 60, 60);
-        stroke = stroke_translate(stroke, 6000, 7000);
-        // stroke = stroke_debug("post_scale      ", stroke);
-        stroke = stroke_interpolate(stroke);
-        // stroke = stroke_debug("post-interpolate", stroke);
-        stroke = stroke_write(stroke);
-        // stroke = stroke_debug("post-write      ", stroke);
+    fprintf(stderr,"DEBUG: num_strokes: %d\n", num_strokes);
+    // stroke = stroke_debug("pre-load", stroke);
+    stroke = stroke_load(stroke, stroke_data, num_strokes);
+    // stroke = stroke_debug("load            ", stroke);
+    stroke = stroke_scale(stroke, 60, 60);
+    stroke = stroke_translate(stroke, 6000, 7000);
+    // stroke = stroke_debug("post_scale      ", stroke);
+    stroke = stroke_interpolate(stroke);
+    // stroke = stroke_debug("post-interpolate", stroke);
+    stroke = stroke_write(stroke);
+    // stroke = stroke_debug("post-write      ", stroke);
 
-        exit(0);
-
-        wacom_char(ascii_value, wrap_ok);
+    exit(0);
 
     }

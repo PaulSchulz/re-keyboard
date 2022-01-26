@@ -22,7 +22,7 @@ re-draw: re-draw.o hershey-fonts.o
 	gcc -Wall -Werror -o $@ $^ `pkg-config --libs gtk+-3.0` -lm
 	@echo "*** Success ***"
 
-re-draw.o: re-draw.c
+re-draw.o: re-draw.c data.c
 	gcc -Wall -Werror `pkg-config --cflags gtk+-3.0` -o $@ -c $<
 
 hershey-fonts.o: hershey-fonts.c
