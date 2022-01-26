@@ -59,6 +59,8 @@ The reMarkable2 has on-screen buttons in the following locations:
 | Document Settings | 780,   800  | 780,15200   |
 |-------------------+-------------+-------------|
 
+For details, see the [[doc/images/on-screen-buttons.png]].
+
 It is possible to remote activate these buttons by writing pen events to
 /dev/input/events1. 
 
