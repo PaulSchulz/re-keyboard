@@ -1,0 +1,65 @@
+#+TITLE: Development Notes
+
+* Contents :TOC:
+- [[#introduction][Introduction]]
+- [[#building][Building]]
+  - [[#building-environment][Building Environment]]
+
+* Introduction
+The following document details the development process used for this project.
+
+At this stage this project is both a work in progress (WIP) and under active
+development. Be aware that while this documentation aims to be as up-to-date as
+possible it may well not be, as new things (a technical term) are implemented,
+and different structures are added, changed or removed.
+
+You have been warned.
+
+On the flip side of this, is any of this is useful to you, then that is
+excellent.
+
+* Building
+The most recent aim is to build the software into an 'opkg' package, which can
+be easily installed and removed from the 'ReMarkable' platform.
+
+This is done using the 'toltecmk' tool, whisk also takes care of setting up the
+build environment with the correct libraries for the ReMarkable.
+
+** Building Environment
+The existing system being used to build the software during development consists
+of:
+- Ubuntu 23.04, x86_64
+- Docker
+- Python3
+
+The targeted hardware for this software is the 'Remarkable2', without any
+additional modifications (eg. toltec).
+    
+Note: While it is possible to use a cross-compiler to create ARM binaries
+directly on Ubuntu, the version of the libc library currently on the Remarkable
+is different (older) than that used by the tools available on Ubuntu.
+
+*** To Install the 'toltecmk' Tool
+There are currently two issues with 'toltecmk' that require fixing prior to use:
+- Interpreting '$' in environment varables (specifically IFS)
+  - See :https://github.com/toltec-dev/build/pull/31/files
+- Issue with latest version of Python 'requests' library
+  - See: https://github.com/toltec-dev/build/issues/30 
+
+#+begin_src shell
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install requests==2.26.0
+  pip install toltecmk
+  patch -p0 < patch-toltec-bash.py
+#+end_src
+
+Check that the build environment is working correctly by building the 'Hello
+World' example.
+
+#+begin_src shell
+  cd package/hello-world
+  toltecml
+#+end_src
+
+This should result in a binary file (build/rmall/src/hello) and an installable package in: dist/rmall/hello_0.0.1-1_rmall.ipk

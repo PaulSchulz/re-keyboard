@@ -119,11 +119,8 @@ void segment_write_end (segment_t* data) {
     segment_write_data(data);
 }
 
-#define NDATA 678
-segment_t sdata[NDATA] =
-{
+
 #include "data.c"
-};
 
 GList* add_segment_to_path (GList* path, segment_t* segment) {
     return path;
@@ -480,6 +477,7 @@ GList* stroke_interpolate (GList* stroke) {
     return stroke;
 }
 
+
 /// \brief Writes stroke data out re2 pen format
 ///
 /// Stroke data is stored in a GList at
@@ -538,7 +536,6 @@ GList* stroke_write (GList* stroke) {
 
             } else {
                 // Invalid start point -> Stoke start (pen up -> pen down)
-
                 //send_wacom_event(EV_KEY, BTN_TOOL_PEN, 1);
                 send_wacom_event(EV_KEY, BTN_TOOL_DOWN, 1);
                 send_wacom_event(EV_ABS, ABS_X, (int)y);
@@ -560,7 +557,6 @@ GList* stroke_write (GList* stroke) {
             } else {
                 // In-valid start point -> Ignore extra invalid flags
             }
-
         }
 
         x_prev = x;
@@ -633,21 +629,43 @@ int main (int argc, char *argv[]) {
     x=x;
     y=y;
 
-    // Toggle Menu (Left Handed)
-    press_ui_button(20080, 15200);
-    //sleep(2);
-    //press_ui_button(20080, 15200);
-
-    for (int i=0; i<NDATA; i++) {
-        segment_translate(&sdata[i],xzero,yzero);
-        segment_translate(&sdata[i],x,y);
-        segment_write_data(&sdata[i]);
+    // Undo
+    if (false) {
+        press_ui_button(13580, 15200);
     }
+
+    // Toggle Menu (Left Handed)
+    if (false) {
+        press_ui_button(20080, 15200);
+    }
+
+    if (false) {
+        for (int i=0; i<NDATA; i++) {
+            segment_translate(&sdata[i],xzero,yzero);
+        }
+    }
+
+    if (false) {
+        for (int i=0; i<NDATA; i++) {
+            segment_translate(&sdata[i],x,y);
+        }
+    }
+
+    if (false) {
+        for (int i=0; i<NDATA; i++) {
+            segment_write_data(&sdata[i]);
+        }
+    }
+
+    fprintf(stderr,"DEBUG: End of stored data\n");
 
     //////////////////////////////////////////////////////////
     GList* strokes = NULL;
-    float new_x = 0;
-    float new_y = 0;
+    float new_x = -1;
+    float new_y = -1;
+    bool pen_in   = false;
+    bool pen_down = false;
+    bool last_pen_down = false;
 
     // Load data into GList
     for (int i=0; i<NDATA; i++) {
@@ -658,24 +676,50 @@ int main (int argc, char *argv[]) {
         guint32 value   = sdata[i].value;
 
         tv_sec = tv_sec;
-        tv_usec = tv_usec;
-        type = type;
-        code = code;
-        value = value;
+         tv_usec = tv_usec;
+         type = type;
+         code = code;
+         value = value;
 
-        if ((type == 3) && (code == 0)) {
-            new_y = value;
-        } else if ((type == 3) ^ (code == 1)) {
-            new_x = value;
-        } else if ((type == 0) && (code == 0) && (value == 0)) {
-            strokes = prepend_point(strokes, new_x, new_y);
-        }
-    }
+         if ((type == EV_KEY) && (code == BTN_TOOL_PEN) && (value == 1)) {
+             pen_in = true;
+
+         } else if ((type == EV_KEY) && (code == BTN_TOOL_PEN) && (value == 0)) {
+             pen_in = false;
+
+         } else if ((type == EV_KEY) && (code == BTN_TOOL_DOWN) && (value == 1)) {
+             pen_down = true;
+
+         } else if ((type == EV_KEY) && (code == BTN_TOOL_DOWN) && (value == 0)) {
+             pen_down = false;
+
+         } else if ((type == EV_ABS) && (code == ABS_X)) {
+             new_y = value;
+
+         } else if ((type == EV_ABS) && (code == ABS_Y)) {
+             new_x = value;
+
+         } else if ((type == 0) && (code == 0) && (value == 0)) {
+             if ((new_x != -1) && (new_y != -1)) {
+                 strokes = prepend_point(strokes, new_x, new_y);
+                 fprintf(stderr,"DEBUG: point %.0f,%.0f\n", new_x, new_y);
+             }
+             if ((pen_down == false) && (last_pen_down == true)) {
+                 new_x = -1; new_y = -1;
+                 strokes = prepend_point(strokes, new_x, new_y);
+                 fprintf(stderr,"DEBUG: point %.0f,%.0f (-)\n", new_x, new_y);
+             }
+         }
+     }
+    pen_in = pen_in;
+
     strokes = g_list_reverse(strokes);
 
-    strokes = stroke_translate(strokes, 0, 200);
-    strokes = stroke_write(strokes);
+    strokes = stroke_translate(strokes, 10000, 10000);
 
+    //strokes = stroke_write(strokes);
+
+    exit(0);
 
     const char* current_font = "hershey";
     int ascii_value = 0x41;
@@ -683,11 +727,9 @@ int main (int argc, char *argv[]) {
     int char_width;
 
     fprintf(stderr,"Write Font Character - %s (%d)\n", current_font, ascii_value);
-
     const gint8* stroke_data = get_font_char(current_font, ascii_value, &num_strokes, &char_width);
     // stroke_data = stroke_data;
 
-    // exit(0);
 
     fprintf(stderr,"DEBUG: num_strokes: %d\n", num_strokes);
     // stroke = stroke_debug("pre-load", stroke);

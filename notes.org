@@ -20,7 +20,6 @@ Project that intercepts and smooths pen strokes via overloading the 'open' syste
 
 See: https://github.com/funkey/recept
 
-
 From this project
 #+begin_src ascii
 type == 1 && code == 320 && value == 1 -> pen in
@@ -94,7 +93,7 @@ See:  https://github.com/machinelevel/sp425-crazy-cow
 
 This is another keyboard project for reMarkable.
 - Requires a 'service' installation.
-- Uses standard keyboards.
+- Uses standard keyboards and Linux device events
 - Uses Hersey font.
 
  

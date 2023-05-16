@@ -25,6 +25,7 @@ activate (GtkApplication* app,
 
     /* Connect signal handlers to the constructed widgets. */
     GObject *window = gtk_builder_get_object (builder, "window");
+
     gtk_window_set_application (GTK_WINDOW (window), app);
     gtk_window_set_title (GTK_WINDOW (window), "reGUI");
     gtk_window_set_default_size (GTK_WINDOW (window), 200, 200);

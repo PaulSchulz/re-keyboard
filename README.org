@@ -1,10 +1,12 @@
 * re-keyboard                                                             :TOC:
-  - [[#introduction][Introduction]]
-  - [[#build][Build]]
-  - [[#installation][Installation]]
+- [[#introduction][Introduction]]
+  - [[#software-features][Software Features]]
   - [[#development][Development]]
+- [[#build][Build]]
+- [[#installation][Installation]]
+- [[#development-1][Development]]
 
-** Introduction
+* Introduction
 Virtual keyboard for Remarkable tablet
 
 *Work in Progress* - Warning. This code is under active development and is in an
@@ -14,30 +16,45 @@ reMarkable tablet via SSH using the default root account. This allows hardware
 level modifications, which may render the device unusable and unrecoverable. Use
 at your own risk,
 
-*** Features
+** Software Features
+*** Original Desired Feature Set
 - Connect to your reMarkable tablet and use a regular keyboard to enter text on
   the tablet.
 - No additional software installation required on reMarkable hardware.
 
-*** Development
-Currently this software is only available as C source code and needs to be built
-from source.
+*** Modified and To be Developed
+- Server running on Re2 which listens on a Named Pipe or Network port for
+  character input and then sends stoke data (pen stroke emulation) to the Re2
+  input device.
 
-See [[notes.org]] for more details about the development enviromment, design and
+** Development
+Currently this software is only available as C/C++ source code and needs to be
+built from source.
+
+See [[development.org]] for more details about the development enviromment, design and
 process.
 
-** Build
+See: [[notes.org]] for more information about the Re2 hardware, other related
+projects and software.
+
+The cross-compilation development process uses the 'toltecmk' tool to
+cross-compile and build the software and packages suitable for installation on
+to the ReMarkable2.
+
+* Build
+(old)
 Packages required: TBD
 #+begin_src shell
   make
 #+end_src
 
-** Installation
+* Installation
+(old)
 Copy the binary (*src/re-keyboard*) into a directory in you executable path.
 
 #+begin_src shell
   cp src/re-markable ~/bin/
 #+end_src
 
-** Development
-Development notes are kept in [[file:notes.org][notes.org.]]
+* Development
+Development notes are kept in [[file:notes.org][development.org.]]

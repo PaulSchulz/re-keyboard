@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+maintainer="Paul Schulz <paul@mawsonlakes_org>"
+pkgnames=(hello)
+pkgver=0.0.1-1
+pkgdesc="Hello World"
+url=
+section=utils
+license=MIT
+timestamp=2023-05-15T03:06+00:00
+
+source=("hello.c")
+sha256sums=("SKIP")
+
+image=toolchain
+
+build() {
+   ${CROSS_COMPILE}gcc hello.c -o hello
+
+}
+
+package() {
+    install -D -m 755 -t "$pkgdir"/home/root/.local/bin "$srcdir"/hello
+}
