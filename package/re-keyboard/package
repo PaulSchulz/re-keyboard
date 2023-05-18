@@ -19,6 +19,7 @@ sha256sums=("SKIP"
            )
 
 image=toolchain
+#image=base
 
 build() {
     # ${CROSS_COMPILE}gcc -o hershey-fonts.o hershey-fonts.cpp ccow.h

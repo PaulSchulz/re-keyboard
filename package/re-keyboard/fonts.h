@@ -1,5 +1,5 @@
-#ifndef _CCOW_H_
-#define _CCOW_H_
+#ifndef _FONTS_H_
+#define _FONTS_H_
 
 #include <stdint.h>
 
@@ -14,10 +14,8 @@
 #define limit_bottom  1200
 
 const int8_t* get_font_char(const char* font_name,
-                            char ascii_value,
-                            int* out_num_verts,
-                            int* out_horiz_dist);
+                      char ascii_value,
+                      int* out_num_verts,
+                      int* out_horiz_dist);
 
-char keycode_to_ascii(int keycode, int mods);
-
-#endif // _CCOW_H_
+#endif // _FONTS_H_
