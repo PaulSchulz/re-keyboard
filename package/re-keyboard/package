@@ -9,13 +9,21 @@ section=utils
 license=MIT
 timestamp=2023-05-15T03:06+00:00
 
-source=("re-keyboard.c")
-sha256sums=("SKIP")
+source=("re-keyboard.c"
+        "hershey-fonts.c"
+        "fonts.h"
+       )
+sha256sums=("SKIP"
+            "SKIP"
+            "SKIP"
+           )
 
 image=toolchain
 
 build() {
-    ${CROSS_COMPILE}gcc re-keyboard.c -o re-keyboard
+    # ${CROSS_COMPILE}gcc -o hershey-fonts.o hershey-fonts.cpp ccow.h
+    # ${CROSS_COMPILE}gcc -o re-keyboard.o   re-keyboard.cpp ccow.h
+    ${CROSS_COMPILE}gcc -o re-keyboard re-keyboard.c hershey-fonts.c
 
 }
 

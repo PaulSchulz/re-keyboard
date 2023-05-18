@@ -230,8 +230,8 @@ static void send_wacom_event(int type, int code, int value)
     segment_t segment;
     segment_set_time(&segment);
     segment.type  = type;
-    segment.code  = code;
-    segment.value = value;
+    segment.code  = code;x
+                             segment.value = value;
     segment_write_data(&segment);
 }
 
