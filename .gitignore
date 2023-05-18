@@ -55,5 +55,5 @@ dkms.conf
 venv
 
 # Toltecmk
-packages/*/build/
-packages/*/dist/
+package/*/build/
+package/*/dist/

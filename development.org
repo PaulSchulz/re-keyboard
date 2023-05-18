@@ -63,3 +63,11 @@ World' example.
 #+end_src
 
 This should result in a binary file (build/rmall/src/hello) and an installable package in: dist/rmall/hello_0.0.1-1_rmall.ipk
+
+*** Restart development environmental
+To start using 'toltecmk' again after a break
+
+#+begin_src shell
+  cd $DEVDIR
+  source venv/bin/activate
+#+end_src

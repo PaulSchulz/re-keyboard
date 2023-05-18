@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+maintainer="Paul Schulz <paul@mawsonlakes_org>"
+pkgnames=(re-keyboard)
+pkgver=0.0.1-1
+pkgdesc="Re Keyboard"
+url=
+section=utils
+license=MIT
+timestamp=2023-05-15T03:06+00:00
+
+source=("re-keyboard.c")
+sha256sums=("SKIP")
+
+image=toolchain
+
+build() {
+    ${CROSS_COMPILE}gcc re-keyboard.c -o re-keyboard
+
+}
+
+package() {
+    install -D -m 755 -t "$pkgdir"/home/root/.local/bin "$srcdir"/re-keyboard
+}
