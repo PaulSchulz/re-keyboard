@@ -84,7 +84,7 @@ static void finish_wacom_events()
     */
 
     // Pause
-    dev_sleep(0,100000);
+    dev_sleep(0,10000);
 }
 
 static void send_wacom_event(int type, int code, int value)
@@ -219,17 +219,139 @@ void font_data_test() {
 struct text_gc_t {
     uint32_t x0;
     uint32_t y0;
+
+    // Glyph Parameters
+    int x_char_offset;
+    int y_char_offset;
+    int char_scale;
+    int char_skip;
+    int char_height;
+
+    int text_cursor_a;
+    int text_cursor_b;
+    float scale;
+    int skip;
+    int baselineskip;
 };
 
-void write_character(struct text_gc_t* text_gc, char ch){
-    char* data_path = "font/glyph_%02d.dat";
+void reset_text_gc (struct text_gc_t* text_gc) {
 
-    debug_print(data_path, ch);
+    text_gc->x_char_offset =  2000;
+    text_gc->y_char_offset =   200;
+    text_gc->char_scale    =    16;
+    text_gc->char_skip     =  5400;
+    text_gc->char_height   = 10800;
+
+    text_gc->text_cursor_a =  0;
+    text_gc->text_cursor_b =  0;
+    text_gc->scale         =  1.0;
+    text_gc->skip          =  text_gc->char_skip / text_gc->char_scale;
+    text_gc->baselineskip  =  text_gc->char_height / text_gc->char_scale;
+}
+
+void write_glyph(struct text_gc_t* text_gc_p, char glyph){
+    int x0 = 6000;
+    int y0 =    0;
+
+    // Text Origin
+    int a0 = 1000;
+    int b0 = 1000;
+    int a = 0;
+    int b = 0;
+
+    int x;
+    int y;
+
+    int x_char_offset = 2000;
+    int y_char_offset =  200;
+
+    x = x0 + b0 - text_gc_p->text_cursor_b;
+    y = y0 + a0 + text_gc_p->text_cursor_a;
+    ///////
+    char filename[64] = "";
+    char* glyph_path = "font/glyph_%02X.dat";
+    sprintf(filename, glyph_path, glyph);
+
+    FILE *data;
+    char buffer[sizeof(struct input_event)];
+    debug_print("Glyph: %s\n", filename);
+
+    data = fopen(filename, "rb");
+    if (data == NULL) {
+        printf("Failed to open the file.\n");
+        return;
+    }
+
+    while (fread(buffer, sizeof(char), RECORD_SIZE, data) == RECORD_SIZE) {
+        // Process the record in the buffer
+        uint16_t type;
+        uint16_t code;
+        uint32_t value;
+
+        type = (uint16_t)(buffer[8]) | (uint16_t)(buffer[9]) << 8;
+        code = (uint16_t)(buffer[10]) | (uint16_t)(buffer[11]) << 8;
+        value = (uint32_t)(buffer[12])
+            | (uint32_t)(buffer[13]) << 8
+            | (uint32_t)(buffer[14]) << 16
+            | (uint32_t)(buffer[15]) << 24;
+
+        if (code == ABS_X) {
+            // Data conditioning
+            value = value - text_gc_p->x_char_offset;
+            value = value / text_gc_p->char_scale;;
+
+            // Scale
+            value = value * text_gc_p->scale;
+            // Reposition
+            value = value + x;
+        }
+
+        if (code == ABS_Y) {
+            // Data conditioning
+            value = value - text_gc_p->y_char_offset;
+            value = value / text_gc_p->char_scale;
+
+            // Scale
+            value = value * text_gc_p->scale;
+            // Reposition
+            value = value + y;
+
+        }
+        send_wacom_event(type,code,value);
+
+        // write(device_wacom, buffer, sizeof(buffer));
+        fsync(device_wacom);
+        // dev_sleep(0,50000);
+    }
+
+    if (!feof(data)) {
+        printf("Failed to read from the file.\n");
+    }
+
+    fclose(data);
+    debug_print("\n");
+
+    text_gc_p->text_cursor_a += text_gc_p->skip;
 
     return;
 }
 
+void glyph_skip(struct text_gc_t* text_gc_p) {
+    text_gc_p->text_cursor_a += text_gc_p->skip;
+}
+
+void glyph_baselineskip(struct text_gc_t* text_gc_p) {
+    text_gc_p->text_cursor_b += text_gc_p->baselineskip;
+}
+
+void glyph_newline(struct text_gc_t* text_gc_p) {
+    text_gc_p->text_cursor_a = 0;
+    text_gc_p->text_cursor_b += text_gc_p->baselineskip;
+}
 //////////////////////////////////////////////////////////////////////////////
+// Internal
+struct text_gc_t text_gc;
+
 static void do_main_loop() {
     while (1) {
         debug_print("do_main_loop\n");
@@ -241,26 +363,29 @@ static void initialize() {
     debug_print("initialize\n");
     debug_print("Version:\n");
 
-    dev_sleep(1,0);
+        dev_sleep(1,0);
 
-    debug_print("Opening pen device: %s\n", pen_device_path);
-    open_device();
+        debug_print("Setup text environoment\n");
+        reset_text_gc(&text_gc);
 
-    // font_data_test();
+        debug_print("Opening pen device: %s\n", pen_device_path);
+        open_device();
 
-    if (device_wacom >= 0) {
-        struct input_event evt;
+        // font_data_test();
 
-        int x0 = 1800;
-        int y0 =  200;
-        int scale = 1.0;
+        if (device_wacom >= 0) {
+            struct input_event evt;
 
-        int a0 = 1000;
-        int b0 = 1000;
-        int a = 0;
-        int b = 0;
+            int x0 = 1800;
+            int y0 =  200;
+            int scale = 1.0;
 
-        int x = b + b0 + x0;
+            int a0 = 1000;
+            int b0 = 1000;
+            int a = 0;
+            int b = 0;
+
+            int x = b + b0 + x0;
         int y = a + a0 + y0;
 
         int x_char_offset = 2000;
@@ -271,72 +396,55 @@ static void initialize() {
         // data_test()
 
         ///////////////////////////////////////////////////////////////////
-        int count;
-        FILE *data;
-        char buffer[sizeof(struct input_event)];
-        data = fopen("font/glyph_41.dat", "rb");
+        int glyph = 0x00;
+        struct text_gc_t *text_gc_p;
+        text_gc_p = &text_gc;
 
-        if (data == NULL) {
-            printf("Failed to open the file.\n");
-            return;
+        char* message = "re-keyboard";
+        char* ptr = message;
+        while(*ptr != 0){
+            write_glyph(&text_gc, *ptr);
+            ptr++;
         }
+        write_glyph(&text_gc, 0);
+        write_glyph(&text_gc, 0);
+        glyph_newline(&text_gc);
 
-        while (fread(buffer, sizeof(char), RECORD_SIZE, data) == RECORD_SIZE) {
-            // Process the record in the buffer
-            uint16_t type;
-            uint16_t code;
-            uint32_t value;
+        write_glyph(&text_gc, 0);
+        write_glyph(&text_gc, 0);
+        glyph_newline(&text_gc);
 
-            type = (uint16_t)(buffer[8]) | (uint16_t)(buffer[9]) << 8;
-            code = (uint16_t)(buffer[10]) | (uint16_t)(buffer[11]) << 8;
-            value = (uint32_t)(buffer[12])
-                | (uint32_t)(buffer[13]) << 8
-                | (uint32_t)(buffer[14]) << 16
-                | (uint32_t)(buffer[15]) << 24;
-
-            if (code == ABS_X) {
-                // Data conditioning
-                value = value - x_char_offset;
-                value = value / 8;
-
-                // Scale
-                value = value * scale;
-                // Reposition
-                value = value + x;
-            }
-
-            if (code == ABS_Y) {
-                // Data conditioning
-                value = value - y_char_offset;
-                value = value / 8;
-
-                // Scale
-                value = value * scale;
-                // Reposition
-                value = value + y;
-
-            }
-
-            send_wacom_event(type,code,value);
-
-            // write(device_wacom, buffer, sizeof(buffer));
-            fsync(device_wacom);
-            // dev_sleep(0,50000);
-
+        char* message2 = "abcdefghijklmnopqrstuzwxyz";
+        ptr = message2;
+        while(*ptr != 0){
+            write_glyph(&text_gc, *ptr);
+            ptr++;
         }
+        glyph_newline(&text_gc);
 
-        if (!feof(data)) {
-            printf("Failed to read from the file.\n");
+        char* message3 = "ABCDEFGHIJKLMOPQRSTUVWXYZ";
+        ptr = message3;
+        while(*ptr != 0){
+            write_glyph(&text_gc, *ptr);
+            ptr++;
         }
+        glyph_newline(&text_gc);
 
-        fclose(data);
-        debug_print("\n");
+        char* message4 = "~!@#$%^&*()_+`-={}|[]\\:;\"<>?,./";
+        ptr = message4;
+        while(*ptr != 0){
+            write_glyph(&text_gc, *ptr);
+            ptr++;
+        }
+        glyph_newline(&text_gc);
+
+
 
         // font_test();
 
-    } else {
+        } else {
         debug_print("Pen device not open for writing\n.");
-    }
+}
 
 }
 
