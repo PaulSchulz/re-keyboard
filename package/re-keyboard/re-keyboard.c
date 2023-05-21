@@ -406,12 +406,7 @@ static void initialize() {
             write_glyph(&text_gc, *ptr);
             ptr++;
         }
-        write_glyph(&text_gc, 0);
-        write_glyph(&text_gc, 0);
         glyph_newline(&text_gc);
-
-        write_glyph(&text_gc, 0);
-        write_glyph(&text_gc, 0);
         glyph_newline(&text_gc);
 
         char* message2 = "abcdefghijklmnopqrstuzwxyz";
@@ -422,7 +417,7 @@ static void initialize() {
         }
         glyph_newline(&text_gc);
 
-        char* message3 = "ABCDEFGHIJKLMOPQRSTUVWXYZ";
+        char* message3 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         ptr = message3;
         while(*ptr != 0){
             write_glyph(&text_gc, *ptr);
@@ -430,8 +425,16 @@ static void initialize() {
         }
         glyph_newline(&text_gc);
 
-        char* message4 = "~!@#$%^&*()_+`-={}|[]\\:;\"<>?,./";
+        char* message4 = "0123456789";
         ptr = message4;
+        while(*ptr != 0){
+            write_glyph(&text_gc, *ptr);
+            ptr++;
+        }
+        glyph_newline(&text_gc);
+
+        char* message5 = "~!@#$%^&*()_+`-={}|[]\\:;\"<>?,./";
+        ptr = message5;
         while(*ptr != 0){
             write_glyph(&text_gc, *ptr);
             ptr++;
